@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VitAI - AI-Powered Diet and Health</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* Main Color Palette (Teal - Orange) */
+        .bg-primary { background-color: #0f766e; } /* teal-700: Dark Sea Green (Navigation) */
+        .hover-primary { background-color: #0e7490; } /* cyan-700 */
+        .bg-secondary-cta { background-color: #f97316; } /* orange-600: Energetic Orange (Buttons) */
+        .hover-secondary-cta { background-color: #ea580c; } /* orange-700 */
+        
+        /* NEW LIGHT ORANGE/PEACH ACCENT COLOR */
+        .bg-accent-light { background-color: #fef3c7; } /* yellow-100: Light peach */
+        .border-accent-light { border-color: #fcd34d; } /* yellow-300 */
+        .text-accent-dark { color: #d97706; } /* yellow-700 */
+
+        /* Deep Shadow */
+        .shadow-2xl-deep { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 100px 0 rgba(13, 148, 136, 0.3); } /* Teal shadowed */
+
+        /* Header Title Color */
+        .header-title { color: #1e1b4b; } 
+        
+        /* Tailwind Class Updates According to New Palette */
+        .btn-primary { background-color: #f97316; } /* orange-600 */
+        .btn-primary:hover { background-color: #ea580c; } /* orange-700 */
+
+        /* Custom height for chat box */
+        .chat-box-height { height: 350px; }
+
+        /* Auth tab aktif çizgi - hangi sekme aktifse onun altında */
+        .auth-tab-active { border-bottom: 2px solid white !important; }
+        .auth-tab-inactive { border-bottom: 2px solid transparent !important; }
+
+        /* Hedef kutusu için nabız efekti */
+        .pulse-green {
+        animation: pulse-animation 2s infinite; }
+
+        @keyframes pulse-animation {
+        0% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.4); }
+        100% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col bg-teal-50"> 
+    <header class="bg-white w-full relative shadow-md">
+        <div class="w-full px-6 py-4 flex justify-between items-center">
+
+            <div class="text-2xl font-bold cursor-pointer header-title" onclick="showHome()">
+                VitAI - Diet Coach
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div id="loginButtons">
+                    <button onclick="showAuth()"
+                        class="btn-primary hover-secondary-cta px-4 py-2 rounded-lg font-semibold transition text-white">
+                        Login / Register
+                    </button>
+                </div>
+
+                <div id="profileButtons" class="hidden flex items-center gap-3 relative">
+                    <button onclick="toggleCard()">
+                        <img id="topAvatar"
+                            class="w-9 h-9 rounded-full border-2 border-primary object-cover"
+                            src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%230f766e'/><circle cx='50' cy='38' r='18' fill='white'/><path d='M20 90c5-22 55-22 60 0' fill='white'/></svg>">
+                    </button>
+
+                    <button onclick="logout()"
+                        class="btn-primary hover-secondary-cta px-4 py-2 rounded-lg font-semibold transition text-white">
+                        Logout
+                    </button>
+
+                    <div id="userCard"
+                        class="hidden absolute right-0 top-14 bg-white text-gray-800 rounded-2xl shadow-2xl-deep w-72 p-5 z-50">
+
+                        <div class="text-center mb-4">
+                            <div class="font-bold text-lg" id="cardName">Guest</div>
+                            <div class="text-sm text-gray-500">Weight Tracker</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="bg-accent-light rounded-lg p-2 text-center">
+                                <div class="font-semibold">Age</div>
+                                <div id="cardAge">-</div>
+                            </div>
+                            <div class="bg-accent-light rounded-lg p-2 text-center">
+                                <div class="font-semibold">Height</div>
+                                <div><span id="cardHeight">-</span> cm</div>
+                            </div>
+                            <div class="bg-accent-light rounded-lg p-2 text-center">
+                                <div class="font-semibold">Weight</div>
+                                <div><span id="cardWeight">-</span> kg</div>
+                            </div>
+                            <div class="bg-accent-light rounded-lg p-2 text-center">
+                                <div class="font-semibold">Goal</div>
+                                <div><span id="cardGoal">-</span> kg</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav id="topMenu" class="hidden bg-primary w-full shadow-md">
+            <div class="w-full px-6 flex gap-8 overflow-x-auto whitespace-nowrap text-white font-semibold">
+                <button onclick="showTab('diet')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">🍽️ My Diet Plan</button> 
+                <button onclick="showTab('foodLog')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">🍎 My Food Log</button>
+                <button onclick="showTab('recipes')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">🍜 Healthy Recipes</button> 
+                <button onclick="showTab('ai')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">📸 Food Analysis</button>
+                <button onclick="showTab('exerciseLog')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">🏃 Exercise Log</button>
+                <button onclick="showTab('healthMetrics')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">📊 Health Metrics</button>
+                <button onclick="showTab('weightTracking')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">⚖️ Weight Tracking</button>
+                <button onclick="showTab('profile')" class="py-3 px-1 border-b-2 border-transparent hover:border-white transition">👤 My Profile</button>
+            </div>
+        </nav>
+    </header>
+
+    <section id="home"
+        class="flex-1 flex items-center justify-center bg-cover bg-center relative"
+        style="background-image:url('https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg')">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="relative text-white text-center p-8 rounded-xl">
+            <h1 class="text-5xl font-bold mb-4">Welcome to VitAI Diet Coach</h1>
+            <p class="text-xl">AI-Powered Personal Weight Management and Nutrition Tracking</p>
+            <button onclick="showAuth()" class="mt-8 bg-secondary-cta hover-secondary-cta text-white text-lg font-semibold px-8 py-3 rounded-xl shadow-lg transition">
+                Start Now
+            </button>
+        </div>
+    </section>
+
+    <section id="auth"
+        class="hidden flex-1 flex items-center justify-center bg-cover bg-center"
+        style="background-image:url('https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg')">
+
+        <div class="bg-teal-900/80 backdrop-blur-sm p-8 rounded-xl w-96 text-white shadow-2xl">
+            <div class="flex mb-6 text-lg font-semibold">
+                <button id="loginTabBtn" onclick="showLoginTab()" class="auth-tab-active w-1/2 py-2 border-b-2 transition">Login</button>
+                <button id="registerTabBtn" onclick="showRegisterTab()" class="auth-tab-inactive w-1/2 py-2 border-b-2 transition">Register</button>
+            </div>
+            <p id="authMessage" class="text-red-300 text-sm mb-3 hidden"></p>
+
+            <div id="loginForm">
+                <input id="loginEmail" class="w-full p-3 mb-3 rounded text-black" placeholder="Email">
+                <input id="loginPassword" class="w-full p-3 mb-4 rounded text-black" type="password" placeholder="Password">
+                <button onclick="login()" class="btn-primary hover-secondary-cta w-full py-3 rounded-lg font-semibold transition">Login</button>
+            </div>
+
+            <div id="registerForm" class="hidden">
+                <input id="regName" class="w-full p-3 mb-3 rounded text-black" placeholder="Full Name">
+                <input id="regEmail" class="w-full p-3 mb-3 rounded text-black" placeholder="Email">
+                <input id="regPassword" class="w-full p-3 mb-4 rounded text-black" type="password" placeholder="Password (min 6 characters)">
+                <button onclick="register()" class="btn-primary hover-secondary-cta w-full py-3 rounded-lg font-semibold transition">Register</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="dashboard" class="hidden flex-1 w-full p-8 md:p-12">
+
+        <div id="diet" class="tab">
+            <div class="max-w-4xl mx-auto grid lg:grid-cols-2 gap-8">
+                <div class="col-span-1 flex flex-col gap-8">
+                    
+                    <div class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-orange-500">
+                        <h2 class="text-3xl font-bold mb-6 text-teal-800">🍽️ Daily Diet Plan</h2>
+                        <p class="text-lg mb-6 text-gray-600">Your recommended meals to reach your target of <span id="targetCalorie" class="font-bold text-orange-600">-</span> kcal:</p>
+
+                        <div class="flex items-center gap-2 mb-4">
+                            <button onclick="fetchAIDietPlan(true)" class="px-4 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-800 font-semibold transition text-sm">🔄 Yeni Plan Oluştur</button>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div class="bg-accent-light rounded-xl shadow-sm p-4 border border-accent-light">
+                                <h4 class="font-extrabold text-lg mb-2 text-teal-900">🥐 Breakfast</h4>
+                                <p id="dietBreakfast" class="text-sm font-bold text-orange-600">Will be suggested by AI.</p>
+                            </div>
+                            <div class="bg-accent-light rounded-xl shadow-sm p-4 border border-accent-light">
+                                <h4 class="font-extrabold text-lg mb-2 text-teal-900">🍛 Lunch</h4>
+                                <p id="dietLunch" class="text-sm font-bold text-orange-600">Will be suggested by AI.</p>
+                            </div>
+                            <div class="bg-accent-light rounded-xl shadow-sm p-4 border border-accent-light">
+                                <h4 class="font-extrabold text-lg mb-2 text-teal-900">🥗 Dinner</h4>
+                                <p id="dietDinner" class="text-sm font-bold text-orange-600">Will be suggested by AI.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 pt-6 border-t border-teal-200">
+                            <h3 class="text-xl font-bold mb-4 text-teal-800">Current Health Metrics</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                <div class="p-2 bg-white rounded-lg border">
+                                    <div class="text-xs text-gray-500">BMI</div>
+                                    <div id="dietBmiValue" class="font-bold text-lg">-</div>
+                                </div>
+                                <div class="p-2 bg-white rounded-lg border">
+                                    <div class="text-xs text-gray-500">BMR</div>
+                                    <div id="dietBmrValue" class="font-bold text-lg">-</div>
+                                </div>
+                                <div class="p-2 bg-white rounded-lg border col-span-2">
+                                    <div class="text-xs text-gray-500">Exercise Calories (Today)</div>
+                                    <div id="dietExerciseCalories" class="font-bold text-lg">- kcal</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-span-1">
+                    <div id="dietitian-chat-box" class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-primary">
+                        <h2 class="text-2xl font-bold mb-4 text-primary">💬 My AI Dietitian</h2>
+                        <div class="text-gray-600 mb-4 text-sm">You can instantly ask questions about nutrition, recipes, or your diet.</div>
+                        
+                        <div id="chatMessages" class="chat-box-height overflow-y-auto p-4 mb-4 border rounded-lg bg-teal-50/50 flex flex-col gap-3">
+                            <div class="flex justify-start">
+                                <div class="bg-primary text-white p-3 rounded-xl max-w-[80%] shadow-md">
+                                    Hello! I am your HealthAI Diet Coach. How can I help you today?
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <input type="text" id="chatInput" class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Type your question here...">
+                            <button onclick="sendAiMessage()" class="bg-secondary-cta hover-secondary-cta text-white font-semibold px-4 rounded-lg transition">
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="foodLog" class="tab hidden">
+            <div class="max-w-4xl mx-auto grid lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg border-t-4 border-orange-500 h-fit">
+                    <h3 class="text-xl font-bold mb-4 text-teal-800">🍎 Add Food</h3>
+                    <div class="flex flex-col gap-3">
+                        <input type="text" id="foodName" placeholder="Food Name" class="p-2 border rounded-lg text-black">
+                        <input type="number" id="foodCalorie" placeholder="Calories (kcal)" class="p-2 border rounded-lg text-black">
+                        <select id="mealType" class="p-2 border rounded-lg">
+                            <option value="Breakfast">Breakfast</option>
+                            <option value="Lunch">Lunch</option>
+                            <option value="Dinner">Dinner</option>
+                            <option value="Snack">Snack</option>
+                        </select>
+                        <button onclick="addFoodItem()" class="bg-secondary-cta hover-secondary-cta text-white font-semibold py-2 rounded-lg transition">Add</button>
+                    </div>
+                </div>
+                <div class="lg:col-span-2">
+                    <div class="bg-white p-6 rounded-xl shadow-lg min-h-[400px]">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-2xl font-bold text-teal-800">My Food Log</h3>
+                            <button onclick="clearFoodLog()" class="text-red-500 text-sm hover:underline">Clear</button>
+                        </div>
+                        <div id="foodListContainer" class="space-y-3 mb-10"></div>
+                        <div class="border-t pt-6 grid grid-cols-3 gap-4 text-center">
+                            <div class="bg-teal-50 p-2 rounded-lg">
+                                <div class="text-[10px] text-gray-500 uppercase">Target</div>
+                                <div id="summaryTarget" class="font-bold text-teal-800">-</div>
+                            </div>
+                            <div class="bg-orange-50 p-2 rounded-lg">
+                                <div class="text-[10px] text-gray-500 uppercase">Consumed</div>
+                                <div id="summaryTaken" class="font-bold text-orange-600">0</div>
+                            </div>
+                            <div class="bg-green-50 p-2 rounded-lg">
+                                <div class="text-[10px] text-gray-500 uppercase">Remaining</div>
+                                <div id="summaryRemaining" class="font-bold text-green-700">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="recipes" class="tab hidden p-8 md:p-12">
+            <div class="w-full max-w-6xl mx-auto bg-white p-8 rounded-xl shadow-2xl-deep border-t-4 border-primary">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-3xl font-bold text-teal-800">🍜 Your Personalized Diet Recipes</h2>
+                        <p class="text-gray-600 mt-2">Your AI Diet Coach has selected healthy recipes tailored to your goals.</p>
+                    </div>
+                    <button onclick="loadAllRecipes(true)" class="px-4 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-800 font-semibold transition text-sm">🔄 Yeni Tarifler</button>
+                </div>
+
+                <div class="flex border-b border-teal-200 mb-6 space-x-4 overflow-x-auto whitespace-nowrap">
+                    <button onclick="showRecipeCategory('breakfast', this)" 
+                        class="recipe-tab-btn py-2 px-4 text-lg font-semibold border-b-2 border-transparent text-teal-600 hover:text-orange-500 hover:border-orange-500 transition duration-150" 
+                        data-category="breakfast">
+                        🥐 Breakfast
+                    </button>
+                    <button onclick="showRecipeCategory('lunch', this)" 
+                        class="recipe-tab-btn py-2 px-4 text-lg font-semibold border-b-2 border-transparent text-teal-600 hover:text-orange-500 hover:border-orange-500 transition duration-150"
+                        data-category="lunch">
+                        🍛 Lunch
+                    </button>
+                    <button onclick="showRecipeCategory('dinner', this)" 
+                        class="recipe-tab-btn py-2 px-4 text-lg font-semibold border-b-2 border-transparent text-teal-600 hover:text-orange-500 hover:border-orange-500 transition duration-150"
+                        data-category="dinner">
+                        🥗 Dinner
+                    </button>
+                    <button onclick="showRecipeCategory('snack', this)" 
+                        class="recipe-tab-btn py-2 px-4 text-lg font-semibold border-b-2 border-transparent text-teal-600 hover:text-orange-500 hover:border-orange-500 transition duration-150"
+                        data-category="snack">
+                        🍎 Snack
+                    </button>
+                </div>
+                
+                <div id="recipe-content-container" class="w-full overflow-hidden">
+                    <div id="breakfast-recipes" class="recipe-category w-full">
+                        <div class="text-center p-8 text-teal-600">Tarifler yükleniyor...</div>
+                    </div>
+                    <div id="lunch-recipes" class="recipe-category hidden w-full"></div>
+                    <div id="dinner-recipes" class="recipe-category hidden w-full"></div>
+                    <div id="snack-recipes" class="recipe-category hidden w-full"></div>
+                </div>
+
+                <div class="mt-10 pt-6 border-t border-teal-200 text-center">
+                    <p class="text-teal-700 font-semibold">Consult your AI Dietitian for more recipe suggestions!</p>
+                </div>
+            </div>
+        </div>
+        <div id="ai" class="tab hidden p-8 md:p-12">
+            <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border-t-4 border-orange-500">
+                <h2 class="text-3xl font-bold mb-6 text-teal-800">📸 Analyze Your Meal with AI</h2>
+                <p class="text-gray-600 mb-6">Our AI quickly estimates calories, macros, and nutritional values by taking or uploading a photo of your meal.</p>
+                
+                <div class="border-2 border-dashed border-teal-300 p-8 text-center rounded-xl bg-teal-50">
+                    <p class="text-teal-700 font-semibold mb-4">Drag a food photo here or:</p>
+                    <input type="file" accept="image/*" class="hidden" id="foodFileInput">
+                    <button onclick="document.getElementById('foodFileInput').click()"
+                        class="bg-secondary-cta hover-secondary-cta text-white font-semibold px-6 py-3 rounded-lg transition">
+                        Upload Photo
+                    </button>
+                </div>
+
+                <div class="mt-8 text-center" id="analysisResult" style="min-height:100px;">
+                    <p class="text-gray-500">Analysis results will appear here.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="healthMetrics" class="tab hidden p-8 md:p-12">
+            <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg border-t-4 border-teal-600">
+                <h2 class="text-3xl font-bold mb-6 text-teal-800">🧪 Lab Results & Health Metrics</h2>
+                <p class="text-gray-600 mb-8">Upload your lab reports or manually enter blood test values.</p>
+
+                <div class="mb-8 p-6 border-2 border-dashed border-teal-300 rounded-xl bg-teal-50 text-center">
+                    <p class="font-semibold text-teal-700 mb-3">Upload Lab Report (PDF / Image)</p>
+                    <input type="file" id="labFile" accept=".pdf,image/*" class="hidden">
+                    <button onclick="document.getElementById('labFile').click()"
+                        class="bg-secondary-cta hover-secondary-cta text-white font-semibold px-6 py-2 rounded-lg transition">
+                        Upload File
+                    </button>
+                    <p id="uploadedLabFile" class="text-sm text-gray-500 mt-3"></p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    <input id="hemoglobin" type="number" placeholder="Hemoglobin (g/dL)" class="p-3 border rounded-lg">
+                    <input id="glucose" type="number" placeholder="Glucose (mg/dL)" class="p-3 border rounded-lg">
+                    <input id="cholesterol" type="number" placeholder="Cholesterol (mg/dL)" class="p-3 border rounded-lg">
+                    <input id="vitaminD" type="number" placeholder="Vitamin D (ng/mL)" class="p-3 border rounded-lg">
+                </div>
+
+                <button onclick="saveLabResults()"
+                    class="bg-primary hover-primary w-full py-3 rounded-lg text-white font-semibold transition">
+                    Save Lab Results
+                </button>
+
+                <div class="mt-10">
+                    <h3 class="text-xl font-bold text-teal-700 mb-4">📄 Saved Records</h3>
+                    <div id="labResultList" class="space-y-3 text-sm text-gray-700"></div>
+                </div>
+            </div>
+        </div>
+        <div id="weightTracking" class="tab hidden p-8 md:p-12">
+    <div class="max-w-5xl mx-auto space-y-8">
+        <div class="grid md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-orange-500">
+                <h3 class="text-xl font-bold mb-4 text-teal-800">Log Daily Weight</h3>
+                <input id="currentWeightInput" type="number" step="0.1" placeholder="Current weight (kg)" class="w-full p-3 border rounded-lg mb-4">
+                <button onclick="recordWeight()" class="w-full bg-secondary-cta hover-secondary-cta text-white font-bold py-3 rounded-lg transition">
+                    Record Weight
+                </button>
+            </div>
+
+           <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-lg border-t-4 border-teal-600">
+    <h3 class="text-xl font-bold mb-4 text-teal-800">Weight Progress Analysis</h3>
+    <div class="grid grid-cols-3 gap-4 text-center">
+        <div class="bg-teal-50 p-4 rounded-lg">
+            <div class="text-xs text-gray-500 uppercase">Starting</div>
+            <div id="startWeightDisplay" class="font-bold text-xl text-teal-800">- kg</div>
+        </div>
+        <div class="bg-teal-50 p-4 rounded-lg">
+            <div class="text-xs text-gray-500 uppercase">Current</div>
+            <div id="currentWeightDisplay" class="font-bold text-xl text-teal-800">- kg</div>
+        </div>
+        <div class="bg-orange-50 p-4 rounded-lg relative">
+            <div class="text-xs text-gray-500 uppercase">Net Change</div>
+            <div id="weightNetChange" class="font-bold text-xl text-orange-600">- kg</div>
+            <div id="goalReachedBadge" class="hidden absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-xs animate-bounce">
+                ✓
+            </div>
+        </div>
+    </div>
+    <p id="aiWeightAnalysis" class="mt-4 text-sm italic text-gray-600 border-l-4 border-teal-400 pl-3">
+        Enter your weight to see your AI-powered progress analysis.
+    </p>
+</div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold mb-4 text-teal-800">Weight Progress Chart</h3>
+            <div class="h-64">
+                <canvas id="weightChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold mb-4 text-teal-800">Weight History (Daily/Monthly)</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-gray-500 border-b">
+                            <th class="pb-3">Date</th>
+                            <th class="pb-3">Weight (kg)</th>
+                            <th class="pb-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="weightHistoryTable" class="text-gray-700">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+      
+        <div id="exerciseLog" class="tab hidden p-8 md:p-12">
+            <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border-t-4 border-orange-500">
+                <h2 class="text-3xl font-bold mb-6 text-teal-800">🏃 Exercise Log</h2>
+                <p class="text-gray-600 mb-6">Track your daily calorie expenditure by recording the exercises you do.</p>
+                <div class="mb-8 p-6 rounded-xl bg-gradient-to-r from-blue-200 to-green-200 text-white shadow-xl">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        ⌚ Activity & Watch Data
+                        <span class="text-xs bg-white/20 px-2 py-1 rounded">Live</span>
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-6 text-center">
+                        <div class="bg-white/20 p-4 rounded-lg">
+                            <div class="text-sm opacity-90">🚶 Daily Steps</div>
+                            <div id="watchSteps" class="text-3xl font-extrabold mt-1">0</div>
+                        </div>
+
+                        <div class="bg-white/20 p-4 rounded-lg">
+                            <div class="text-sm opacity-90">🔥 Watch Calories</div>
+                            <div id="watchCalories" class="text-3xl font-extrabold mt-1">0 kcal</div>
+                        </div>
+                    </div>
+
+                    <p class="text-xs mt-4 opacity-80">
+                        * Smart watch data is automatically synchronized (simulation).
+                    </p>
+                </div>
+
+
+                <div class="p-5 border rounded-xl bg-teal-50">
+                    <h3 class="text-xl font-bold text-teal-700 mb-4">Exercise Information</h3>
+
+                    <label class="block mb-2 font-semibold">Exercise Type:</label>
+                    <select id="exerciseType" class="w-full p-2 mb-4 border rounded">
+                        <option value="walking">🚶‍♀️ Walking</option>
+                        <option value="running">🏃 Running</option>
+                        <option value="cycling">🚴‍♂️ Cycling</option>
+                        <option value="swimming">🏊‍♀️ Swimming</option>
+                        <option value="none">❌ No Exercise</option>
+                    </select>
+
+                    <label class="block mb-2 font-semibold">Duration (minutes):</label>
+                    <input id="exerciseDuration" type="number" min="0" value="0" class="w-full p-2 mb-4 border rounded" placeholder="Minutes">
+
+                    <p class="text-lg font-semibold mb-4">Estimated Calories Burned: <span id="exerciseCalories" class="text-orange-600">0</span> kcal</p>
+                    
+                    <button onclick="saveExerciseLog()" class="bg-primary hover-primary w-full py-2 rounded text-white font-semibold transition">
+                        Save Exercise
+                    </button>
+    <div class="mt-6">
+    <h3 class="text-lg font-bold text-teal-800 mb-3">📋 Today’s Exercises</h3>
+    <div id="exerciseHistory" class="space-y-2 text-sm"></div>
+</div>
+
+<div class="mt-8 bg-teal-50 p-4 rounded-xl">
+    <h3 class="font-bold text-teal-800 mb-3">📊 Weekly Exercise Summary</h3>
+    <div id="weeklyExerciseSummary" class="grid grid-cols-3 gap-4 text-center"></div>
+</div>
+
+                </div>
+            </div>
+        </div>
+       
+        <div id="successToast"
+             class="fixed top-6 right-6 z-50 hidden bg-white border-l-4 border-green-500 shadow-xl rounded-xl px-5 py-4 transition-all duration-300">
+            <div class="flex gap-3 items-start">
+                <div class="text-green-500 text-2xl">✔</div>
+                <div>
+                    <p id="successTitle" class="font-bold text-gray-800">Success</p>
+                    <p id="successMessage" class="text-sm text-gray-600">Completed</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recipe Modal -->
+        <div id="recipeModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-[60] backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 m-4 relative max-h-[90vh] flex flex-col transform transition-all">
+                <button onclick="closeRecipeModal()" class="absolute top-4 right-4 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
+                <h3 id="modalRecipeTitle" class="text-2xl font-bold text-orange-600 mb-6 pr-6"></h3>
+                <div class="overflow-y-auto pr-2 flex-1">
+                    <h4 class="font-bold text-teal-800 mb-3">Hazırlanışı:</h4>
+                    <div id="modalRecipeInstructions" class="text-gray-700 leading-relaxed space-y-3"></div>
+                </div>
+                <button onclick="closeRecipeModal()" class="mt-6 w-full bg-secondary-cta hover-secondary-cta text-white font-semibold py-3 rounded-lg transition">
+                    Kapat
+                </button>
+            </div>
+        </div>
+
+        <div id="profile"
+            class="tab hidden w-full min-h-screen flex items-center justify-center
+                bg-gradient-to-br from-teal-50 via-white to-teal-100">
+
+            <div class="bg-white/90 backdrop-blur-lg p-10 rounded-3xl w-full max-w-md shadow-2xl-deep text-gray-800">
+                <h2 class="text-3xl font-bold mb-6 text-center text-teal-900">👤 Update Profile Information</h2>
+
+                <div class="flex justify-center mb-6">
+                    <label class="cursor-pointer text-center">
+                        <img id="profileAvatar"
+                            class="w-28 h-28 rounded-full mx-auto mb-2 object-cover border-4 border-teal-500 shadow-lg"
+                            src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%230f766e'/><circle cx='50' cy='38' r='18' fill='white'/><path d='M20 90c5-22 55-22 60 0' fill='white'/></svg>">
+                        <span class="text-sm text-teal-700 font-semibold">Upload Photo</span>
+                        <input type="file" accept="image/*" class="hidden" onchange="uploadPhoto(event)">
+                    </label>
+                </div>
+
+                <input id="name" placeholder="First Name" class="w-full p-2 mb-2 border rounded">
+                <input id="surname" placeholder="Last Name" class="w-full p-2 mb-2 border rounded">
+                <input id="email" placeholder="Email" class="w-full p-2 mb-2 border rounded bg-gray-100" disabled>
+                <input id="age" type="number" placeholder="Age" class="w-full p-2 mb-2 border rounded">
+                
+                <label class="block mb-1 text-sm font-semibold text-gray-700">Gender:</label>
+                <select id="gender" class="w-full p-2 mb-2 border rounded">
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                </select>
+                
+                <input id="height" type="number" placeholder="Height (cm)" class="w-full p-2 mb-2 border rounded">
+                <input id="weight" type="number" placeholder="Weight (kg)" class="w-full p-2 mb-2 border rounded">
+                <input id="goal" type="number" placeholder="Target Weight (kg)" class="w-full p-2 mb-2 border rounded">
+
+                <label class="block mb-1 text-sm font-semibold text-gray-700">Activity Level:</label>
+                <select id="activity" class="w-full p-2 mb-4 border rounded">
+                    <option value="1.2">Sedentary (Little/No exercise)</option>
+                    <option value="1.375">Lightly Active (Exercise 1-3 days/week)</option>
+                    <option value="1.55">Moderately Active (Exercise 3-5 days/week)</option>
+                    <option value="1.725">Very Active (Intense/Daily exercise)</option>
+                </select>
+
+                <button onclick="saveProfile()" class="bg-primary hover-primary w-full py-3 rounded-lg text-white font-semibold transition">
+                    Save Profile
+                </button>
+            </div>
+
+        </div>
+    </section>
+
+<script>
+    /* ===== API HELPER ===== */
+    async function api(path, options = {}) {
+        const token = localStorage.getItem('token');
+        const headers = { ...(options.headers || {}) };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
+        const res = await fetch('/api' + path, { ...options, headers });
+        if (res.status === 401) {
+            localStorage.removeItem('token');
+            showHome();
+            return null;
+        }
+        return res.json();
+    }
+
+    let cachedProfile = {};
+
+    /* ===== SUCCESS TOAST SYSTEM ===== */
+    function showSuccess(title, message) {
+        const toast = document.getElementById("successToast");
+        const titleEl = document.getElementById("successTitle");
+        const msgEl = document.getElementById("successMessage");
+
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+
+        toast.classList.remove("hidden");
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-10px)";
+
+        setTimeout(() => {
+            toast.style.opacity = "1";
+            toast.style.transform = "translateY(0)";
+        }, 50);
+
+        setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform = "translateY(-10px)";
+            setTimeout(() => toast.classList.add("hidden"), 300);
+        }, 3000);
+    }
+
+    const home = document.getElementById("home");
+    const auth = document.getElementById("auth");
+    const dashboard = document.getElementById("dashboard");
+    const loginButtons = document.getElementById("loginButtons");
+    const profileButtons = document.getElementById("profileButtons");
+    const topMenu = document.getElementById("topMenu");
+    const tabs = document.querySelectorAll(".tab");
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+    const loginTabBtn = document.getElementById("loginTabBtn");
+    const registerTabBtn = document.getElementById("registerTabBtn");
+
+    function validateEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+    function validatePassword(password) { return password.length >= 6; }
+    function showAuthMessage(msg) {
+        const messageEl = document.getElementById('authMessage');
+        messageEl.innerText = msg;
+        messageEl.classList.remove('hidden');
+        setTimeout(() => messageEl.classList.add('hidden'), 3000);
+    }
+
+    function hideAll() {
+        [home, auth, dashboard].forEach(s => s.classList.add("hidden"));
+    }
+    function showHome() {
+        hideAll(); home.classList.remove("hidden");
+        loginButtons.classList.remove("hidden");
+        profileButtons.classList.add("hidden");
+        topMenu.classList.add("hidden");
+        localStorage.removeItem("token");
+        cachedProfile = {};
+    }
+    function showAuth() { hideAll(); auth.classList.remove("hidden"); showLoginTab(); }
+    function toggleCard() { userCard.classList.toggle("hidden"); }
+
+    function showLoginTab() {
+        loginForm.classList.remove("hidden"); registerForm.classList.add("hidden");
+        loginTabBtn.classList.add("auth-tab-active"); loginTabBtn.classList.remove("auth-tab-inactive");
+        registerTabBtn.classList.remove("auth-tab-active"); registerTabBtn.classList.add("auth-tab-inactive");
+    }
+    function showRegisterTab() {
+        registerForm.classList.remove("hidden"); loginForm.classList.add("hidden");
+        registerTabBtn.classList.add("auth-tab-active"); registerTabBtn.classList.remove("auth-tab-inactive");
+        loginTabBtn.classList.remove("auth-tab-active"); loginTabBtn.classList.add("auth-tab-inactive");
+    }
+
+    function enterDashboard() {
+        hideAll();
+        dashboard.classList.remove("hidden");
+        loginButtons.classList.add("hidden");
+        profileButtons.classList.remove("hidden");
+        topMenu.classList.remove("hidden");
+        loadProfile();
+        showTab("profile");
+    }
+
+    async function login() {
+        const email = document.getElementById("loginEmail").value;
+        const password = document.getElementById("loginPassword").value;
+
+        if (!validateEmail(email)) { showAuthMessage("Invalid email format!"); return; }
+
+        const data = await api('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+
+        if (!data || data.error) {
+            showAuthMessage(data?.error || "Wrong email or password!");
+            return;
+        }
+
+        localStorage.setItem('token', data.token);
+        showSuccess("Login Successful", "Welcome back 👋");
+        enterDashboard();
+    }
+
+    async function register() {
+        const name = document.getElementById("regName").value;
+        const email = document.getElementById("regEmail").value;
+        const password = document.getElementById("regPassword").value;
+
+        if (!name.trim()) { showAuthMessage("Full Name cannot be empty!"); return; }
+        if (!validateEmail(email)) { showAuthMessage("Invalid email format!"); return; }
+        if (!validatePassword(password)) { showAuthMessage("Password must be at least 6 characters!"); return; }
+
+        const data = await api('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ name, email, password })
+        });
+
+        if (!data || data.error) {
+            showAuthMessage(data?.error || "Registration failed!");
+            return;
+        }
+
+        localStorage.setItem('token', data.token);
+        showSuccess("Account Created", "Welcome to VitAI 🎉");
+        enterDashboard();
+    }
+
+    function logout() {
+        showSuccess("Logged Out", "You have successfully logged out 👋");
+        showHome();
+    }
+
+    function showTab(id) {
+        tabs.forEach(t => {
+            t.classList.add("hidden");
+            t.classList.remove("flex");
+        });
+
+        const currentTab = document.getElementById(id);
+
+        if (id === "profile") {
+            currentTab.classList.add("flex");
+        } else {
+            currentTab.classList.remove("flex");
+        }
+        currentTab.classList.remove("hidden");
+
+        if (id === "diet" || id === "healthMetrics") {
+            updateHealthPanel();
+        }
+        if (id === "diet") {
+            loadDietPlan();
+        }
+        if (id === "exerciseLog") {
+            updateExerciseCalories();
+            renderExerciseLog();
+            renderWeeklyExerciseSummary();
+        }
+        if (id === "profile") {
+            loadProfile();
+        }
+        if (id === "recipes") {
+            loadAllRecipes(false);
+            const defaultRecipeTab = document.querySelector('#recipes .recipe-tab-btn[data-category="breakfast"]');
+            if (defaultRecipeTab) {
+                showRecipeCategory('breakfast', defaultRecipeTab);
+            }
+        }
+        if (id === 'foodLog') {
+            renderFoodLog();
+        }
+        if (id === "healthMetrics") {
+            renderLabResults();
+        }
+        if (id === 'weightTracking') {
+            renderWeightData();
+        }
+    }
+
+    function showRecipeCategory(category, button) {
+        document.querySelectorAll('.recipe-category').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        const targetContent = document.getElementById(category + '-recipes');
+        if (targetContent) {
+            targetContent.classList.remove('hidden');
+        }
+
+        document.querySelectorAll('.recipe-tab-btn').forEach(btn => {
+            btn.classList.remove('border-orange-500', 'text-orange-500');
+            btn.classList.add('border-transparent', 'text-teal-600');
+        });
+
+        if (button) {
+            button.classList.add('border-orange-500', 'text-orange-500');
+            button.classList.remove('border-transparent', 'text-teal-600');
+        }
+    }
+
+    /* ===== PROFILE ===== */
+    function getProfileData() {
+        return cachedProfile;
+    }
+
+    async function loadProfile() {
+        if (!localStorage.getItem('token')) return;
+
+        const data = await api('/profile');
+        if (!data || data.error) return;
+
+        cachedProfile = {
+            name: data.name || '',
+            surname: data.surname || '',
+            email: data.email || '',
+            age: Number(data.age) || 0,
+            gender: data.gender || 'female',
+            height: Number(data.height) || 0,
+            weight: Number(data.weight) || 0,
+            goal: Number(data.goal) || 0,
+            activity: Number(data.activity) || 1.2,
+            avatar: data.avatar || null
+        };
+
+        if (cachedProfile.avatar) {
+            topAvatar.src = profileAvatar.src = cachedProfile.avatar;
+        }
+
+        document.getElementById('name').value = cachedProfile.name;
+        document.getElementById('surname').value = cachedProfile.surname;
+        document.getElementById('email').value = cachedProfile.email;
+        document.getElementById('age').value = cachedProfile.age || "";
+        document.getElementById('gender').value = cachedProfile.gender;
+        document.getElementById('height').value = cachedProfile.height || "";
+        document.getElementById('weight').value = cachedProfile.weight || "";
+        document.getElementById('goal').value = cachedProfile.goal || "";
+        document.getElementById('activity').value = cachedProfile.activity || "1.2";
+
+        document.getElementById('exerciseDuration').removeEventListener('input', updateExerciseCalories);
+        document.getElementById('exerciseType').removeEventListener('change', updateExerciseCalories);
+        document.getElementById('exerciseDuration').addEventListener('input', updateExerciseCalories);
+        document.getElementById('exerciseType').addEventListener('change', updateExerciseCalories);
+
+        updateCard();
+        updateExerciseCalories();
+        updateHealthPanel();
+    }
+
+    async function saveProfile() {
+        if (!localStorage.getItem('token')) { alert("Please login to save your profile!"); return; }
+
+        const profileData = {
+            name: document.getElementById('name').value,
+            surname: document.getElementById('surname').value,
+            age: parseInt(document.getElementById('age').value) || 0,
+            gender: document.getElementById('gender').value,
+            height: parseFloat(document.getElementById('height').value) || 0,
+            weight: parseFloat(document.getElementById('weight').value) || 0,
+            goal: parseFloat(document.getElementById('goal').value) || 0,
+            activity: parseFloat(document.getElementById('activity').value) || 1.2,
+        };
+
+        const data = await api('/profile', {
+            method: 'PUT',
+            body: JSON.stringify(profileData)
+        });
+
+        if (!data || data.error) { alert(data?.error || "Save failed"); return; }
+
+        cachedProfile = { ...cachedProfile, ...profileData };
+        updateCard();
+        updateHealthPanel();
+        showSuccess("Profile Saved", "Your health data has been updated 💚");
+    }
+
+    function updateCard() {
+        const p = cachedProfile;
+        cardName.innerText = `${p.name || ""} ${p.surname || ""}`.trim() || "User";
+        cardAge.innerText = p.age || "-";
+        cardHeight.innerText = p.height || "-";
+        cardWeight.innerText = p.weight || "-";
+        cardGoal.innerText = p.goal || "-";
+    }
+
+    function uploadPhoto(e) {
+        const r = new FileReader();
+        r.onload = async () => {
+            topAvatar.src = profileAvatar.src = r.result;
+            await api('/profile', {
+                method: 'PUT',
+                body: JSON.stringify({ ...cachedProfile, avatar: r.result })
+            });
+        };
+        r.readAsDataURL(e.target.files[0]);
+    }
+
+    /* ===== HEALTH & CALORIE CALCULATIONS ===== */
+    function calculateBMR(weight, height, age, gender) {
+        if (gender === "male") {
+            return (10 * weight + 6.25 * height - 5 * age + 5);
+        } else {
+            return (10 * weight + 6.25 * height - 5 * age - 161);
+        }
+    }
+
+    function calculateBMI(weight, height) {
+        return weight / ((height / 100) ** 2);
+    }
+
+    async function updateHealthPanel() {
+        const profile = getProfileData();
+        if (profile.weight > 0 && profile.height > 0 && profile.age > 0) {
+            const bmi = calculateBMI(profile.weight, profile.height).toFixed(1);
+            const bmr = calculateBMR(profile.weight, profile.height, profile.age, profile.gender).toFixed(0);
+            const calorieTarget = (bmr * profile.activity).toFixed(0);
+
+            document.getElementById('targetCalorie').innerText = calorieTarget;
+            document.getElementById('dietBmiValue').innerText = bmi;
+            document.getElementById('dietBmrValue').innerText = bmr;
+        } else {
+            document.getElementById('targetCalorie').innerText = "-";
+            document.getElementById('dietBmiValue').innerText = "-";
+            document.getElementById('dietBmrValue').innerText = "-";
+        }
+
+        const todayData = await api('/exercise/today-calories');
+        const todayCalories = todayData ? todayData.calories : 0;
+        document.getElementById('dietExerciseCalories').innerText = todayCalories + " kcal";
+    }
+
+    function updateExerciseCalories() {
+        const profile = getProfileData();
+        const exerciseType = document.getElementById('exerciseType').value;
+        const exerciseDuration = parseFloat(document.getElementById('exerciseDuration').value) || 0;
+        const weight = profile.weight || 70;
+
+        const metValues = { walking: 3.5, running: 8, cycling: 6, swimming: 7, none: 0 };
+        const met = metValues[exerciseType] || 0;
+        const caloriesBurned = ((met * 3.5 * weight / 200) * exerciseDuration).toFixed(0);
+        document.getElementById('exerciseCalories').innerText = caloriesBurned;
+    }
+
+    /* ===== AI CHAT ===== */
+    function createMessageElement(message, isUser) {
+        const alignment = isUser ? 'justify-end' : 'justify-start';
+        const color = isUser ? 'bg-orange-500 text-white' : 'bg-primary text-white';
+        const messageEl = document.createElement('div');
+        messageEl.className = `flex ${alignment}`;
+        messageEl.innerHTML = `
+            <div class="${color} p-3 rounded-xl max-w-[80%] shadow-md whitespace-pre-wrap">
+                ${message}
+            </div>
+        `;
+        return messageEl;
+    }
+
+    async function sendAiMessage() {
+        const chatInput = document.getElementById('chatInput');
+        const message = chatInput.value.trim();
+        const chatMessages = document.getElementById('chatMessages');
+        if (message === "") return;
+
+        chatMessages.appendChild(createMessageElement(message, true));
+        chatInput.value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        const typingEl = document.createElement('div');
+        typingEl.className = 'flex justify-start';
+        typingEl.id = 'typingIndicator';
+        typingEl.innerHTML = `<div class="bg-primary text-white p-3 rounded-xl shadow-md animate-pulse">Thinking...</div>`;
+        chatMessages.appendChild(typingEl);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        const data = await api('/ai/chat', {
+            method: 'POST',
+            body: JSON.stringify({ message })
+        });
+
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) indicator.remove();
+
+        const aiResponse = data?.response || data?.error || "Sorry, I couldn't process your request.";
+        chatMessages.appendChild(createMessageElement(aiResponse, false));
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    document.getElementById('chatInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendAiMessage();
+    });
+
+    /* ===== DIET PLAN (AI) ===== */
+    async function fetchAIDietPlan(forceRefresh = false) {
+        const email = getProfileData().email || 'guest';
+        if (forceRefresh) {
+            localStorage.removeItem(`ai_diet_${email}`);
+        } else {
+            const cached = localStorage.getItem(`ai_diet_${email}`);
+            if (cached) {
+                renderAIDietPlan(JSON.parse(cached));
+                return;
+            }
+        }
+
+        const breakfastEl = document.getElementById('dietBreakfast');
+        const lunchEl = document.getElementById('dietLunch');
+        const dinnerEl = document.getElementById('dietDinner');
+        const currentPlan = forceRefresh ? {
+            breakfast: breakfastEl?.innerText || '',
+            lunch: lunchEl?.innerText || '',
+            dinner: dinnerEl?.innerText || ''
+        } : null;
+        const loadingMsg = 'Yeni plan yükleniyor...';
+        if (breakfastEl) breakfastEl.innerText = loadingMsg;
+        if (lunchEl) lunchEl.innerText = loadingMsg;
+        if (dinnerEl) dinnerEl.innerText = loadingMsg;
+
+        try {
+            const hasValidPlan = currentPlan && [currentPlan.breakfast, currentPlan.lunch, currentPlan.dinner]
+                .some(t => t && !t.includes('yükleniyor') && !t.includes('Loading') && !t.includes('suggested'));
+            const body = hasValidPlan ? JSON.stringify({ currentPlan }) : '{}';
+            const data = await api('/ai/diet-plan', { method: 'POST', body });
+            if (data && data.breakfast && !data.error) {
+                localStorage.setItem(`ai_diet_${email}`, JSON.stringify(data));
+                renderAIDietPlan(data);
+            } else {
+                throw new Error(data?.error || 'Geçersiz yanıt');
+            }
+        } catch (e) {
+            console.error('AI Diet fetch error:', e);
+            const errMsg = (e.message && e.message !== 'Geçersiz yanıt') ? e.message : 'Hata oluştu. Lütfen tekrar deneyin.';
+            if (breakfastEl) breakfastEl.innerText = errMsg;
+            if (lunchEl) lunchEl.innerText = errMsg;
+            if (dinnerEl) dinnerEl.innerText = errMsg;
+        }
+    }
+
+    function renderAIDietPlan(dietData) {
+        if (!dietData) return;
+        const getMealText = (m) => typeof m === 'string' ? m : (m && m.meal ? m.meal : '-');
+        const breakfastEl = document.getElementById('dietBreakfast');
+        const lunchEl = document.getElementById('dietLunch');
+        const dinnerEl = document.getElementById('dietDinner');
+        if (breakfastEl) breakfastEl.innerText = getMealText(dietData.breakfast);
+        if (lunchEl) lunchEl.innerText = getMealText(dietData.lunch);
+        if (dinnerEl) dinnerEl.innerText = getMealText(dietData.dinner);
+    }
+
+    function loadDietPlan() {
+        fetchAIDietPlan(false);
+    }
+
+    /* ===== RECIPES (AI) ===== */
+    let cachedRecipes = null;
+    let recipeModalCache = {};
+
+    function renderRecipeCard(r, category, idx) {
+        const title = r.title || r.name || 'Recipe';
+        const desc = r.description || '';
+        const calories = r.calories || '?';
+        const macros = r.macros || 'N/A';
+        const time = r.time || r.prepTime || '';
+        const instructions = r.instructions || '';
+        const id = `${category}-${idx}`;
+        recipeModalCache[id] = { title, instructions };
+        return `
+            <div class="bg-teal-50 p-6 rounded-xl shadow-lg border border-teal-200 hover:shadow-xl transition duration-300 min-h-[280px] flex flex-col min-w-0 w-full">
+                <h3 class="text-xl font-bold mb-2 text-orange-600">${escapeHtml(title)}</h3>
+                <p class="text-sm text-gray-700">${escapeHtml(desc)}</p>
+                <ul class="text-sm text-gray-700 space-y-1 list-disc list-inside mt-3 flex-1">
+                    <li><b>Calories:</b> ${escapeHtml(calories)}</li>
+                    <li><b>Macros:</b> ${escapeHtml(macros)}</li>
+                    ${time ? `<li><b>Time:</b> ${escapeHtml(time)}</li>` : ''}
+                </ul>
+                <button onclick="showRecipeModalById('${id}')" class="mt-4 w-full bg-secondary-cta hover-secondary-cta text-white font-semibold px-4 py-2.5 rounded-lg transition text-sm">
+                    Tarifi Gör
+                </button>
+            </div>
+        `;
+    }
+
+    function escapeHtml(s) {
+        if (s == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(s);
+        return div.innerHTML;
+    }
+
+    function showRecipeModalById(id) {
+        const r = recipeModalCache[id];
+        if (r) showRecipeModal(r.title, r.instructions);
+    }
+
+    function showRecipeModal(title, instructions) {
+        document.getElementById('modalRecipeTitle').innerText = title;
+        const instEl = document.getElementById('modalRecipeInstructions');
+        const formatted = (instructions || 'Hazırlanış bilgisi bulunamadı.').replace(/\n/g, '<br>');
+        instEl.innerHTML = formatted;
+        document.getElementById('recipeModal').classList.remove('hidden');
+    }
+
+    function closeRecipeModal() {
+        document.getElementById('recipeModal').classList.add('hidden');
+    }
+
+    async function loadAllRecipes(forceRefresh = false) {
+        if (!forceRefresh && cachedRecipes) {
+            renderAllRecipeCategories(cachedRecipes);
+            return;
+        }
+
+        const categories = ['breakfast', 'lunch', 'dinner', 'snack'];
+        categories.forEach(cat => {
+            const el = document.getElementById(cat + '-recipes');
+            if (el) el.innerHTML = `<div class="text-center p-8"><div class="animate-pulse text-teal-600 font-semibold">Tarifler yükleniyor...</div></div>`;
+        });
+
+        try {
+            const data = await api('/ai/generate-recipes', { method: 'POST' });
+            if (!data || data.error) {
+                categories.forEach(cat => {
+                    const el = document.getElementById(cat + '-recipes');
+                    if (el) el.innerHTML = `<p class="text-gray-500">Tarifler yüklenemedi.</p>`;
+                });
+                return;
+            }
+            cachedRecipes = data;
+            renderAllRecipeCategories(data);
+        } catch (e) {
+            console.error('Recipe load error:', e);
+            categories.forEach(cat => {
+                const el = document.getElementById(cat + '-recipes');
+                if (el) el.innerHTML = `<p class="text-red-500">Hata oluştu. Lütfen tekrar deneyin.</p>`;
+            });
+        }
+    }
+
+    function renderAllRecipeCategories(data) {
+        const categories = ['breakfast', 'lunch', 'dinner', 'snack'];
+        categories.forEach(cat => {
+            const el = document.getElementById(cat + '-recipes');
+            if (!el) return;
+            const items = data[cat];
+            const list = Array.isArray(items) ? items : (items ? [items] : []);
+            el.innerHTML = list.length
+                ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full min-w-0">${list.map((r, idx) => renderRecipeCard(r, cat, idx)).join('')}</div>`
+                : '<p class="text-gray-500">Tarif bulunamadı.</p>';
+        });
+    }
+
+    /* ===== FOOD ANALYSIS (AI) ===== */
+    document.getElementById('foodFileInput')?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const resultDiv = document.getElementById('analysisResult');
+        resultDiv.innerHTML = `<div class="animate-pulse text-teal-600 font-semibold">Analyzing your meal with AI...</div>`;
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const base64 = reader.result;
+
+            resultDiv.innerHTML = `
+                <img src="${base64}" class="mx-auto mb-4 max-h-48 rounded-xl shadow-lg" />
+                <div class="animate-pulse text-teal-600 font-semibold">AI is analyzing...</div>
+            `;
+
+            const data = await api('/ai/analyze-food', {
+                method: 'POST',
+                body: JSON.stringify({ image: base64 })
+            });
+
+            if (!data || data.error) {
+                resultDiv.innerHTML += `<p class="text-red-500 mt-4">${data?.error || 'Analysis failed'}</p>`;
+                return;
+            }
+
+            if (data.raw) {
+                resultDiv.innerHTML = `
+                    <img src="${base64}" class="mx-auto mb-4 max-h-48 rounded-xl shadow-lg" />
+                    <div class="text-left bg-teal-50 p-4 rounded-xl mt-4 whitespace-pre-wrap">${data.raw}</div>
+                `;
+                return;
+            }
+
+            const healthBar = Math.min(data.healthRating || 5, 10) * 10;
+            resultDiv.innerHTML = `
+                <img src="${base64}" class="mx-auto mb-4 max-h-48 rounded-xl shadow-lg" />
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-teal-600 text-left mt-4">
+                    <h3 class="text-2xl font-bold text-teal-800 mb-4">${data.name || 'Food'}</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-4">
+                        <div class="bg-orange-50 p-3 rounded-lg">
+                            <div class="text-xs text-gray-500">Calories</div>
+                            <div class="font-bold text-xl text-orange-600">${data.calories || '?'}</div>
+                            <div class="text-xs text-gray-400">kcal</div>
+                        </div>
+                        <div class="bg-teal-50 p-3 rounded-lg">
+                            <div class="text-xs text-gray-500">Protein</div>
+                            <div class="font-bold text-xl text-teal-700">${data.protein || '?'}g</div>
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded-lg">
+                            <div class="text-xs text-gray-500">Carbs</div>
+                            <div class="font-bold text-xl text-yellow-700">${data.carbs || '?'}g</div>
+                        </div>
+                        <div class="bg-red-50 p-3 rounded-lg">
+                            <div class="text-xs text-gray-500">Fat</div>
+                            <div class="font-bold text-xl text-red-600">${data.fat || '?'}g</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-sm text-gray-600 mb-1">Health Rating: ${data.healthRating || '?'}/10</div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-teal-500 h-3 rounded-full transition-all" style="width:${healthBar}%"></div>
+                        </div>
+                    </div>
+                    ${data.vitamins && data.vitamins.length ? `
+                        <div class="text-sm text-gray-600 mb-2"><b>Vitamins/Minerals:</b> ${data.vitamins.join(', ')}</div>
+                    ` : ''}
+                    <p class="text-sm italic text-teal-700 border-l-4 border-teal-400 pl-3 mt-3">${data.advice || ''}</p>
+                </div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    /* ===== EXERCISE LOG ===== */
+    async function saveExerciseLog() {
+        if (!localStorage.getItem('token')) return;
+
+        const type = document.getElementById('exerciseType').value;
+        const duration = parseFloat(document.getElementById('exerciseDuration').value) || 0;
+        if (duration <= 0 || type === "none") return;
+
+        const profile = getProfileData();
+        const weight = profile.weight || 70;
+        const metValues = { walking: 3.5, running: 8, cycling: 6, swimming: 7 };
+        const met = metValues[type] || 0;
+        const calories = Math.round((met * 3.5 * weight / 200) * duration);
+
+        await api('/exercise', {
+            method: 'POST',
+            body: JSON.stringify({ type, duration, calories })
+        });
+
+        showSuccess("Exercise Saved", "Egzersiz kaydedildi 🏃🔥");
+        renderExerciseLog();
+        updateHealthPanel();
+        renderWeeklyExerciseSummary();
+    }
+
+    async function renderExerciseLog() {
+        const data = await api('/exercise');
+        if (!data) return;
+
+        const container = document.getElementById('exerciseHistory');
+
+        if (!data.length) {
+            container.innerHTML = `<p class="text-gray-400 italic">Bugün egzersiz kaydı yok.</p>`;
+            return;
+        }
+
+        container.innerHTML = data.map(e => `
+            <div class="flex justify-between items-center bg-white p-3 rounded-lg border shadow-sm">
+                <div>
+                    <div class="font-semibold text-teal-700">
+                        ${emojiForExercise(e.type)} ${e.type}
+                    </div>
+                    <div class="text-xs text-gray-500">${e.duration} dk</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="font-bold text-orange-600">
+                        🔥 ${e.calories} kcal
+                    </div>
+                    <button
+                        onclick="deleteExercise(${e.id})"
+                        class="text-red-500 hover:text-red-700 text-lg"
+                        title="Delete">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function deleteExercise(id) {
+        await api('/exercise/' + id, { method: 'DELETE' });
+        renderExerciseLog();
+        updateHealthPanel();
+        renderWeeklyExerciseSummary();
+    }
+
+    function emojiForExercise(type) {
+        return { walking: "🚶", running: "🏃", cycling: "🚴", swimming: "🏊" }[type] || "🏋️";
+    }
+
+    async function renderWeeklyExerciseSummary() {
+        const data = await api('/exercise/weekly');
+        if (!data) return;
+
+        const totalCalories = data.reduce((s, e) => s + e.calories, 0);
+        const totalDuration = data.reduce((s, e) => s + e.duration, 0);
+
+        const box = document.getElementById('weeklyExerciseSummary');
+        box.innerHTML = `
+            <div>
+                <div class="text-2xl font-bold text-orange-600">${data.length}</div>
+                <div class="text-xs text-gray-600">Sessions</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-teal-700">${totalDuration}</div>
+                <div class="text-xs text-gray-600">Minutes</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-red-600">${totalCalories}</div>
+                <div class="text-xs text-gray-600">kcal Burned</div>
+            </div>
+        `;
+    }
+
+    /* ===== FOOD LOG ===== */
+    async function addFoodItem() {
+        const name = document.getElementById('foodName').value;
+        const cal = parseInt(document.getElementById('foodCalorie').value);
+        const type = document.getElementById('mealType').value;
+        if (!name || !cal) { alert("Please enter a name and calorie count!"); return; }
+
+        await api('/food', {
+            method: 'POST',
+            body: JSON.stringify({ name, calories: cal, meal_type: type })
+        });
+
+        document.getElementById('foodName').value = "";
+        document.getElementById('foodCalorie').value = "";
+        renderFoodLog();
+    }
+
+    async function renderFoodLog() {
+        const log = await api('/food') || [];
+        const profile = getProfileData();
+        const container = document.getElementById('foodListContainer');
+
+        container.innerHTML = log.length ? log.map(i => `
+            <div class="flex justify-between items-center p-3 bg-gray-50 rounded border-l-4 border-teal-600 shadow-sm">
+                <div><span class="text-[10px] font-bold text-teal-700 uppercase">${i.meal_type}</span><div class="font-bold text-sm">${i.name}</div></div>
+                <div class="flex items-center gap-4"><span class="font-bold text-orange-600 text-sm">${i.calories} kcal</span><button onclick="deleteFoodItem(${i.id})" class="text-red-400">✕</button></div>
+            </div>
+        `).join('') : '<p class="text-gray-400 italic text-center text-sm">You haven\'t added any food today.</p>';
+
+        const taken = log.reduce((s, i) => s + i.calories, 0);
+        const bmr = calculateBMR(profile.weight, profile.height, profile.age, profile.gender);
+        const target = (bmr * (profile.activity || 1.2)).toFixed(0);
+
+        document.getElementById('summaryTarget').innerText = target + " kcal";
+        document.getElementById('summaryTaken').innerText = taken + " kcal";
+        document.getElementById('summaryRemaining').innerText = (target - taken) + " kcal";
+    }
+
+    async function deleteFoodItem(id) {
+        await api('/food/' + id, { method: 'DELETE' });
+        renderFoodLog();
+    }
+
+    async function clearFoodLog() {
+        if (confirm("Are you sure?")) {
+            await api('/food', { method: 'DELETE' });
+            renderFoodLog();
+        }
+    }
+
+    /* ===== WEIGHT TRACKING ===== */
+    let weightChartInstance = null;
+    let goalCelebratedThisSession = false;
+
+    async function recordWeight() {
+        const weightVal = parseFloat(document.getElementById('currentWeightInput').value);
+        if (!weightVal) return;
+
+        await api('/weight', {
+            method: 'POST',
+            body: JSON.stringify({ weight: weightVal })
+        });
+
+        cachedProfile.weight = weightVal;
+        document.getElementById('currentWeightInput').value = "";
+        showSuccess("Weight Recorded", "Your progress has been saved!");
+        renderWeightData();
+    }
+
+    async function renderWeightData() {
+        const history = await api('/weight') || [];
+        if (history.length === 0) return;
+
+        const current = Number(history[history.length - 1].weight);
+        const start = Number(history[0].weight);
+        const diff = (current - start).toFixed(1);
+
+        const profile = getProfileData();
+        const goalWeight = parseFloat(profile.goal);
+
+        const badge = document.getElementById('goalReachedBadge');
+        const changeText = document.getElementById('weightNetChange');
+
+        document.getElementById('startWeightDisplay').innerText = start + " kg";
+        document.getElementById('currentWeightDisplay').innerText = current + " kg";
+
+        let changeEmoji = "➖";
+        if (diff < 0) changeEmoji = "📉💪";
+        else if (diff > 0) changeEmoji = "📈⚠️";
+
+        changeText.innerText = `${changeEmoji} ${(diff > 0 ? "+" : "")}${diff} kg`;
+
+        const goalEverReached = goalWeight && history.some(h => Number(h.weight) <= goalWeight);
+
+        if (goalEverReached) {
+            badge.classList.remove('hidden');
+            changeText.classList.replace('text-orange-600', 'text-green-600');
+
+            if (!goalCelebratedThisSession) {
+                goalCelebratedThisSession = true;
+                showSuccess("🎯 Goal Achieved!", "Hedef kilona ulaştın, harika bir iş çıkardın! 🏆");
+                confetti({ particleCount: 180, spread: 90, origin: { y: 0.6 } });
+            }
+        } else {
+            badge.classList.add('hidden');
+            changeText.classList.replace('text-green-600', 'text-orange-600');
+        }
+
+        const analysisBox = document.getElementById('aiWeightAnalysis');
+        if (diff < 0) {
+            analysisBox.innerText = "Harika! Kilo verme sürecin istikrarlı şekilde ilerliyor 💪";
+        } else if (diff > 0) {
+            analysisBox.innerText = "Kilo artışı var 📈. Beslenme ve hareket dengesini gözden geçirebilirsin.";
+        } else {
+            analysisBox.innerText = "Kilon sabit ➖. Bu da sürdürülebilirlik açısından olumlu.";
+        }
+
+        const table = document.getElementById('weightHistoryTable');
+        const historyReversed = [...history].reverse();
+
+        table.innerHTML = historyReversed.map((entry, index) => {
+            const i = history.length - 1 - index;
+            const prev = history[i - 1];
+            const w = Number(entry.weight);
+
+            let statusEmoji = "➖";
+            if (prev) {
+                if (w < Number(prev.weight)) statusEmoji = "📉";
+                else if (w > Number(prev.weight)) statusEmoji = "📈";
+            }
+
+            const reachedGoalHere = goalWeight && w <= goalWeight;
+            const dateStr = entry.log_date || new Date(entry.created_at).toLocaleDateString();
+
+            return `
+                <tr class="border-b ${index === 0 ? 'bg-teal-50 font-bold' : ''}">
+                    <td class="py-3">${dateStr}</td>
+                    <td class="py-3">
+                        ${w} kg
+                        ${index === 0 ? ' 📍 ' : ''}
+                        ${reachedGoalHere ? ' 🏆' : ''}
+                    </td>
+                    <td class="py-3 text-teal-600 font-semibold italic">
+                        ${reachedGoalHere ? 'Goal Reached 🎯' : statusEmoji + ' Progress'}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        updateWeightChart(history);
+    }
+
+    function updateWeightChart(history) {
+        const ctx = document.getElementById('weightChart').getContext('2d');
+        const labels = history.map(h => h.log_date || new Date(h.created_at).toLocaleDateString());
+        const data = history.map(h => Number(h.weight));
+
+        if (weightChartInstance) weightChartInstance.destroy();
+
+        weightChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Weight (kg)',
+                    data,
+                    backgroundColor: data.map((_, i) =>
+                        i === data.length - 1 ? '#f97316' : '#0f766e'
+                    ),
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grace: '10%'
+                    }
+                }
+            }
+        });
+    }
+
+    /* ===== LAB RESULTS ===== */
+    async function saveLabResults() {
+        if (!localStorage.getItem('token')) { alert("Please login first!"); return; }
+
+        const labData = {
+            hemoglobin: parseFloat(document.getElementById('hemoglobin').value) || null,
+            glucose: parseFloat(document.getElementById('glucose').value) || null,
+            cholesterol: parseFloat(document.getElementById('cholesterol').value) || null,
+            vitamin_d: parseFloat(document.getElementById('vitaminD').value) || null,
+        };
+
+        await api('/lab', {
+            method: 'POST',
+            body: JSON.stringify(labData)
+        });
+
+        showSuccess("Lab Data Saved", "Blood test results stored successfully 🧬");
+        renderLabResults();
+
+        ['hemoglobin', 'glucose', 'cholesterol', 'vitaminD'].forEach(id => document.getElementById(id).value = "");
+    }
+
+    async function renderLabResults() {
+        const labs = await api('/lab') || [];
+        const container = document.getElementById('labResultList');
+
+        if (!labs.length) {
+            container.innerHTML = `<p class="text-gray-400 italic">No lab records yet.</p>`;
+            return;
+        }
+
+        container.innerHTML = labs.map(l => `
+            <div class="p-4 bg-teal-50 rounded-lg border shadow-sm">
+                <div class="font-semibold text-teal-800 mb-1">📅 ${l.log_date || 'N/A'}</div>
+                <div>Hemoglobin: <b>${l.hemoglobin ?? '-'}</b></div>
+                <div>Glucose: <b>${l.glucose ?? '-'}</b></div>
+                <div>Cholesterol: <b>${l.cholesterol ?? '-'}</b></div>
+                <div>Vitamin D: <b>${l.vitamin_d ?? '-'}</b></div>
+            </div>
+        `).join('');
+    }
+
+    /* ===== INITIAL LOAD ===== */
+    window.onload = () => {
+        if (localStorage.getItem('token')) {
+            enterDashboard();
+        }
+    };
+
+    document.getElementById('labFile')?.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('uploadedLabFile').innerText = `Uploaded: ${file.name}`;
+            showSuccess("File Uploaded", "Lab document attached 📎");
+        }
+    });
+
+</script>
+</body>
+</html>
