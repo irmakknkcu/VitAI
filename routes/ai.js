@@ -8,11 +8,22 @@ function getGenAI() {
 }
 
 async function getProfileContext(db, userId) {
-    const [profiles] = await db.query(
-        `SELECT u.name, u.surname, p.age, p.gender, p.height, p.weight, p.goal, p.activity
-         FROM users u JOIN profiles p ON u.id = p.user_id WHERE u.id = ?`,
-        [userId]
-    );
+    let profiles;
+    try {
+        [profiles] = await db.query(
+            `SELECT u.name, u.surname, p.age, p.gender, p.height, p.weight, p.goal, p.activity,
+                    p.diet_type, p.allergies, p.dislikes, p.budget_level, p.cook_time_pref
+             FROM users u JOIN profiles p ON u.id = p.user_id WHERE u.id = ?`,
+            [userId]
+        );
+    } catch {
+        // Backward compatibility if DB has not been migrated yet.
+        [profiles] = await db.query(
+            `SELECT u.name, u.surname, p.age, p.gender, p.height, p.weight, p.goal, p.activity
+             FROM users u JOIN profiles p ON u.id = p.user_id WHERE u.id = ?`,
+            [userId]
+        );
+    }
     if (profiles.length === 0) return '';
 
     const p = profiles[0];
@@ -36,9 +47,17 @@ async function getProfileContext(db, userId) {
         tdee = (Number(bmr) * activity).toFixed(0);
     }
 
+    const dietType = (p.diet_type || '').toString().trim();
+    const allergies = (p.allergies || '').toString().trim();
+    const dislikes = (p.dislikes || '').toString().trim();
+    const budgetLevel = (p.budget_level || '').toString().trim();
+    const cookTimePref = Number(p.cook_time_pref) || 0;
+
     return `User profile: ${p.name || ''} ${p.surname || ''}, Age: ${age}, Gender: ${p.gender || 'female'}, ` +
            `Height: ${height}cm, Weight: ${weight}kg, Goal: ${goal}kg, ` +
-           `BMI: ${bmi}, BMR: ${bmr} kcal, TDEE: ${tdee} kcal, Activity: ${activity}`;
+           `BMI: ${bmi}, BMR: ${bmr} kcal, TDEE: ${tdee} kcal, Activity: ${activity}. ` +
+           `Preferences: DietType=${dietType || 'none'}, Allergies=${allergies || 'none'}, Dislikes=${dislikes || 'none'}, ` +
+           `Budget=${budgetLevel || 'medium'}, CookTimePref=${cookTimePref ? cookTimePref + 'min' : 'unspecified'}`;
 }
 
 // AI Chat
@@ -77,6 +96,11 @@ Use the user's profile and latest lab results (hemoglobin, glucose, cholesterol,
 - High cholesterol → reduce fats and fried foods.
 - Low hemoglobin → include iron-rich foods.
 - Low vitamin D → include vitamin D-rich foods (fish, eggs, dairy).
+Also respect dietary preferences and constraints:
+- NEVER suggest foods that conflict with allergies/intolerances.
+- Avoid foods listed in dislikes.
+- Match diet type when possible (e.g., vegan, low carb).
+- Keep suggestions within cook time preference when relevant.
 
 WEEKLY DIET PLANS:
 If the user requests a weekly plan:
@@ -176,10 +200,19 @@ router.post('/diet-plan', auth, async (req, res) => {
     try {
         const { currentPlan } = req.body || {};
         const db = req.app.locals.db;
-        const [profiles] = await db.query(
-            `SELECT p.age, p.gender, p.height, p.weight FROM profiles p WHERE p.user_id = ?`,
-            [req.userId]
-        );
+        let profiles;
+        try {
+            [profiles] = await db.query(
+                `SELECT p.age, p.gender, p.height, p.weight, p.diet_type, p.allergies, p.dislikes, p.budget_level, p.cook_time_pref
+                 FROM profiles p WHERE p.user_id = ?`,
+                [req.userId]
+            );
+        } catch {
+            [profiles] = await db.query(
+                `SELECT p.age, p.gender, p.height, p.weight FROM profiles p WHERE p.user_id = ?`,
+                [req.userId]
+            );
+        }
         if (profiles.length === 0 || !profiles[0].weight || !profiles[0].height || !profiles[0].age) {
             return res.status(400).json({ error: 'Tam profil bilgisi (Yaş, Boy, Kilo) gereklidir.' });
         }
@@ -204,6 +237,12 @@ Age: ${profile.age}
 Gender: ${profile.gender === 'female' ? 'Female' : 'Male'}
 Height: ${profile.height} cm
 Weight: ${profile.weight} kg
+Preferences:
+- Diet type: ${profile.diet_type || 'none'}
+- Allergies/intolerances: ${profile.allergies || 'none'}
+- Dislikes: ${profile.dislikes || 'none'}
+- Budget level: ${profile.budget_level || 'medium'}
+- Cook time preference: ${profile.cook_time_pref ? profile.cook_time_pref + ' min' : 'unspecified'}
 ${avoidSection}
 The user clicked REFRESH - they want a NEW, DIFFERENT menu. Be creative. Vary the cuisine, ingredients, and meal types.
 
@@ -211,14 +250,22 @@ RULES - MUST FOLLOW:
 1. ALWAYS include PORTION for every meal. Write portion in parentheses: (1 bowl), (150g), (1 serving), (2 slices), (4 tbsp).
 2. Multiple items: write portion for each. Example: "Oatmeal with berries (1 bowl) + Whole wheat toast (1 slice)" or "Grilled chicken (150g) + Green salad (1 bowl)" or "Lentil soup (1 bowl) + Rice pilaf (4 tbsp)".
 3. No preparation details, only meal name and portion.
+4. STRICT: Do not suggest any foods that violate allergies/intolerances. Avoid dislikes.
 4. Respond in ENGLISH.
 
 Return ONLY valid JSON:
 {
   "breakfast": "Meal name (portion) + ...",
   "lunch": "Meal name (portion) + ...",
-  "dinner": "Meal name (portion) + ..."
-}`;
+  "dinner": "Meal name (portion) + ...",
+  "meal_calories": {
+    "breakfast": 420,
+    "lunch": 550,
+    "dinner": 500
+  }
+}
+
+meal_calories MUST be realistic integers (kcal) for the full meal text above; they should roughly match the user's energy needs (typical split ~25-30% breakfast, ~35-40% lunch, ~30-35% dinner of daily maintenance).`;
 
         const result = await model.generateContent(promptContext);
         let text = result.response.text();
@@ -244,10 +291,20 @@ Return ONLY valid JSON:
 router.post('/generate-recipes', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
-        const [profiles] = await db.query(
-            `SELECT p.age, p.gender, p.height, p.weight, p.goal, p.activity FROM profiles p WHERE p.user_id = ?`,
-            [req.userId]
-        );
+        let profiles;
+        try {
+            [profiles] = await db.query(
+                `SELECT p.age, p.gender, p.height, p.weight, p.goal, p.activity,
+                        p.diet_type, p.allergies, p.dislikes, p.budget_level, p.cook_time_pref
+                 FROM profiles p WHERE p.user_id = ?`,
+                [req.userId]
+            );
+        } catch {
+            [profiles] = await db.query(
+                `SELECT p.age, p.gender, p.height, p.weight, p.goal, p.activity FROM profiles p WHERE p.user_id = ?`,
+                [req.userId]
+            );
+        }
         if (profiles.length === 0) {
             return res.status(400).json({ error: 'Profil bilgisi gereklidir.' });
         }
@@ -264,9 +321,19 @@ router.post('/generate-recipes', auth, async (req, res) => {
         const promptContext = `Kullanıcı profili: 
 Yaş: ${profile.age}, Cinsiyet: ${profile.gender === 'female' ? 'Kadın' : 'Erkek'}, 
 Boy: ${profile.height} cm, Kilo: ${profile.weight} kg, Hedef kilo: ${profile.goal || '-'} kg, Aktivite: ${profile.activity || 1.2}
+Tercihler:
+- Diyet tipi: ${profile.diet_type || 'yok'}
+- Alerji/intolerans: ${profile.allergies || 'yok'}
+- Sevmediği besinler: ${profile.dislikes || 'yok'}
+- Bütçe seviyesi: ${profile.budget_level || 'medium'}
+- Pişirme süresi tercihi: ${profile.cook_time_pref ? profile.cook_time_pref + ' dk' : 'belirtilmedi'}
 
 Bu kullanıcı için hedefine uygun, sağlıklı ve pratik tarifler oluştur. Her kategoride 2 farklı tarif ver (toplam 8 tarif).
 Lütfen her seferinde TAMAMEN FARKLI malzemeler kullanan yepyeni dünya mutfağı veya yerel tarifler üret. Aynı tarifleri tekrar verme.
+Kesin kurallar:
+- Alerjilere/intoleranslara aykırı malzeme kullanma.
+- Sevmediği besinleri tariflere koyma.
+- Pişirme süresi tercihini mümkün olduğunca takip et.
 
 Kesinlikle JSON formatında döndür:
 {

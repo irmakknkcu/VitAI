@@ -6,7 +6,8 @@ router.get('/', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
         const [rows] = await db.query(
-            'SELECT * FROM weight_history WHERE user_id = ? ORDER BY log_date ASC, created_at ASC',
+            `SELECT id, user_id, weight, DATE_FORMAT(log_date, '%Y-%m-%d') AS log_date, created_at
+             FROM weight_history WHERE user_id = ? ORDER BY log_date ASC, created_at ASC`,
             [req.userId]
         );
         res.json(rows);
@@ -22,7 +23,9 @@ router.post('/', auth, async (req, res) => {
         const { weight } = req.body;
         if (!weight) return res.status(400).json({ error: 'Weight value required' });
 
-        const date = new Date().toISOString().split('T')[0];
+        const d = new Date();
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        const date = d.toISOString().slice(0, 10);
         const [result] = await db.query(
             'INSERT INTO weight_history (user_id, weight, log_date) VALUES (?, ?, ?)',
             [req.userId, weight, date]

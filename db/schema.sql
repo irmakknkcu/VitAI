@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS profiles (
     weight DECIMAL(5,1) DEFAULT 0,
     goal DECIMAL(5,1) DEFAULT 0,
     activity DECIMAL(4,3) DEFAULT 1.200,
+    diet_type VARCHAR(50) DEFAULT '',
+    allergies TEXT,
+    dislikes TEXT,
+    budget_level ENUM('low','medium','high') DEFAULT 'medium',
+    cook_time_pref INT DEFAULT 30,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
