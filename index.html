@@ -44,6 +44,14 @@
         @keyframes pulse-animation {
         0% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.4); }
         100% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } }
+
+        .lab-card-new {
+        animation: lab-highlight 2s ease-out;
+        }
+        @keyframes lab-highlight {
+        0% { transform: scale(1.02); box-shadow: 0 0 0 3px rgba(13,148,136,0.5); }
+        100% { transform: scale(1); box-shadow: none; }
+        }
     </style>
 </head>
 
@@ -370,11 +378,23 @@
                 <div class="mb-8 p-6 border-2 border-dashed border-teal-300 rounded-xl bg-teal-50 text-center">
                     <p class="font-semibold text-teal-700 mb-3">Upload Lab Report (PDF / Image)</p>
                     <input type="file" id="labFile" accept=".pdf,image/*" class="hidden">
-                    <button onclick="document.getElementById('labFile').click()"
+                    <button id="labUploadBtn" onclick="document.getElementById('labFile').click()"
                         class="bg-secondary-cta hover-secondary-cta text-white font-semibold px-6 py-2 rounded-lg transition">
                         Upload File
                     </button>
                     <p id="uploadedLabFile" class="text-sm text-gray-500 mt-3"></p>
+                    <div id="labProgress" class="hidden mt-4">
+                        <div class="flex items-center justify-center gap-3 mb-2">
+                            <svg class="animate-spin h-5 w-5 text-teal-600" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            <span id="labProgressText" class="text-sm font-medium text-teal-700">Reading PDF...</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="labProgressBar" class="bg-teal-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-6 mb-8">
@@ -391,7 +411,7 @@
 
                 <div class="mt-10">
                     <h3 class="text-xl font-bold text-teal-700 mb-4">📄 Saved Records</h3>
-                    <div id="labResultList" class="space-y-3 text-sm text-gray-700"></div>
+                    <div id="labResultList" class="space-y-2 text-sm text-gray-700"></div>
                 </div>
             </div>
         </div>
@@ -2468,47 +2488,164 @@
     }
 
     /* ===== LAB RESULTS ===== */
-    async function saveLabResults() {
-        if (!localStorage.getItem('token')) { alert("Please login first!"); return; }
+    async function parseLabPdfAndFillInputs(file) {
+        const token = localStorage.getItem('token');
+        if (!token) { alert('Please login first.'); return; }
 
-        const labData = {
-            hemoglobin: parseFloat(document.getElementById('hemoglobin').value) || null,
-            glucose: parseFloat(document.getElementById('glucose').value) || null,
-            cholesterol: parseFloat(document.getElementById('cholesterol').value) || null,
-            vitamin_d: parseFloat(document.getElementById('vitaminD').value) || null,
-        };
+        const progress = document.getElementById('labProgress');
+        const bar = document.getElementById('labProgressBar');
+        const txt = document.getElementById('labProgressText');
+        const btn = document.getElementById('labUploadBtn');
 
-        await api('/lab', {
-            method: 'POST',
-            body: JSON.stringify(labData)
-        });
+        progress.classList.remove('hidden');
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        txt.textContent = 'Uploading file...';
+        bar.style.width = '15%';
 
-        showSuccess("Lab Data Saved", "Blood test results stored successfully 🧬");
-        renderLabResults();
+        const steps = [
+            { pct: '35%', msg: 'Extracting text from PDF...' },
+            { pct: '60%', msg: 'Running OCR (this may take a moment)...' },
+            { pct: '80%', msg: 'Parsing lab values...' },
+        ];
+        let stepIdx = 0;
+        const timer = setInterval(() => {
+            if (stepIdx < steps.length) {
+                bar.style.width = steps[stepIdx].pct;
+                txt.textContent = steps[stepIdx].msg;
+                stepIdx++;
+            }
+        }, 2500);
 
-        ['hemoglobin', 'glucose', 'cholesterol', 'vitaminD'].forEach(id => document.getElementById(id).value = "");
+        try {
+            const formData = new FormData();
+            formData.append('labPdf', file);
+            const res = await fetch('/api/lab/parse-pdf', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            });
+            clearInterval(timer);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'File could not be read');
+
+            bar.style.width = '100%';
+            txt.textContent = 'Done!';
+
+            document.getElementById('hemoglobin').value = data.hemoglobin ?? '';
+            document.getElementById('glucose').value = data.glucose ?? '';
+            document.getElementById('cholesterol').value = data.cholesterol ?? '';
+            document.getElementById('vitaminD').value = data.vitamin_d ?? '';
+
+            setTimeout(() => {
+                progress.classList.add('hidden');
+                bar.style.width = '0%';
+            }, 1500);
+
+            showSuccess('Lab Report Parsed', 'Fields filled - review and save.');
+        } catch (err) {
+            clearInterval(timer);
+            progress.classList.add('hidden');
+            bar.style.width = '0%';
+            throw err;
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
     }
 
+    async function saveLabResults() {
+        if (!localStorage.getItem('token')) {
+            alert('Please login first!');
+            return;
+        }
+
+        const labData = {
+            hemoglobin: parseFloat(document.getElementById('hemoglobin').value) || 0,
+            glucose: parseFloat(document.getElementById('glucose').value) || 0,
+            cholesterol: parseFloat(document.getElementById('cholesterol').value) || 0,
+            vitamin_d: parseFloat(document.getElementById('vitaminD').value) || 0
+        };
+
+        if (!labData.hemoglobin && !labData.glucose && !labData.cholesterol && !labData.vitamin_d) {
+            alert('All values are empty. Please enter at least one value or upload a lab report.');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/lab', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(labData)
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(body.error || 'Kayıt başarısız');
+            }
+            showSuccess('Lab Data Saved', 'Saved successfully 🧬');
+            await renderLabResults();
+            ['hemoglobin', 'glucose', 'cholesterol', 'vitaminD'].forEach(id =>
+                document.getElementById(id).value = ''
+            );
+            document.getElementById('labFile').value = '';
+            const uploadedEl = document.getElementById('uploadedLabFile');
+            if (uploadedEl) uploadedEl.innerText = '';
+            const listEl = document.getElementById('labResultList');
+            listEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const newest = listEl.querySelector('.lab-card');
+            if (newest) {
+                newest.classList.add('lab-card-new');
+                setTimeout(() => newest.classList.remove('lab-card-new'), 2000);
+            }
+        } catch (err) {
+            alert(err.message || 'Kayıt başarısız');
+        }
+    }
+
+    
+
     async function renderLabResults() {
-        const labs = await api('/lab') || [];
+        const res = await fetch('/api/lab', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        const labs = await res.json();
         const container = document.getElementById('labResultList');
 
-        if (!labs.length) {
+        const fmt = v => (v !== null && v !== undefined && v !== '') ? parseFloat(v) : '-';
+        const hasData = l => parseFloat(l.hemoglobin) || parseFloat(l.glucose) || parseFloat(l.cholesterol) || parseFloat(l.vitamin_d);
+
+        const sortedLabs = [...labs]
+            .filter(hasData)
+            .sort((a, b) => new Date(b.log_date) - new Date(a.log_date) || b.id - a.id);
+
+        if (!sortedLabs.length) {
             container.innerHTML = `<p class="text-gray-400 italic">No lab records yet.</p>`;
             return;
         }
 
-        container.innerHTML = labs.map(l => `
-            <div class="p-4 bg-teal-50 rounded-lg border shadow-sm">
-                <div class="font-semibold text-teal-800 mb-1">📅 ${l.log_date || 'N/A'}</div>
-                <div>Hemoglobin: <b>${l.hemoglobin ?? '-'}</b></div>
-                <div>Glucose: <b>${l.glucose ?? '-'}</b></div>
-                <div>Cholesterol: <b>${l.cholesterol ?? '-'}</b></div>
-                <div>Vitamin D: <b>${l.vitamin_d ?? '-'}</b></div>
-            </div>
-        `).join('');
+        container.innerHTML = sortedLabs.map((l, i) => {
+            const dateStr = l.log_date
+                ? new Date(l.log_date).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })
+                : 'N/A';
+            const isFirst = i === 0;
+            return `
+            <div class="lab-card p-3 rounded-lg border shadow-sm transition-all duration-300 ${isFirst ? 'bg-teal-100 border-teal-400' : 'bg-teal-50 border-gray-200'}">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-semibold text-teal-800 text-sm">📅 ${dateStr}</span>
+                    ${isFirst ? '<span class="text-xs bg-teal-600 text-white px-2 py-0.5 rounded-full">Latest</span>' : ''}
+                </div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm">
+                    <div>Hemoglobin: <b>${fmt(l.hemoglobin)}</b></div>
+                    <div>Glucose: <b>${fmt(l.glucose)}</b></div>
+                    <div>Cholesterol: <b>${fmt(l.cholesterol)}</b></div>
+                    <div>Vitamin D: <b>${fmt(l.vitamin_d)}</b></div>
+                </div>
+            </div>`;
+        }).join('');
     }
-
     /* ===== INITIAL LOAD ===== */
     window.onload = () => {
         if (localStorage.getItem('token')) {
@@ -2516,11 +2653,14 @@
         }
     };
 
-    document.getElementById('labFile')?.addEventListener('change', e => {
+    document.getElementById('labFile')?.addEventListener('change', async e => {
         const file = e.target.files[0];
-        if (file) {
-            document.getElementById('uploadedLabFile').innerText = `Uploaded: ${file.name}`;
-            showSuccess("File Uploaded", "Lab document attached 📎");
+        if (!file) return;
+        document.getElementById('uploadedLabFile').innerText = file.name;
+        try {
+            await parseLabPdfAndFillInputs(file);
+        } catch (err) {
+            alert(err.message || 'File could not be read');
         }
     });
 

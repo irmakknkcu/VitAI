@@ -218,6 +218,31 @@ router.post('/diet-plan', auth, async (req, res) => {
         }
 
         const profile = profiles[0];
+
+        let labSection = '';
+        try {
+            const [labRows] = await db.query(
+                `SELECT hemoglobin, glucose, cholesterol, vitamin_d FROM lab_results
+                 WHERE user_id = ? ORDER BY log_date DESC, id DESC LIMIT 1`,
+                [req.userId]
+            );
+            if (labRows.length) {
+                const lab = labRows[0];
+                const h = parseFloat(lab.hemoglobin) || 0;
+                const g = parseFloat(lab.glucose) || 0;
+                const c = parseFloat(lab.cholesterol) || 0;
+                const v = parseFloat(lab.vitamin_d) || 0;
+                labSection = `\nLatest Lab Results:
+- Hemoglobin: ${h} g/dL ${h > 0 && h < 12 ? '⚠ LOW' : h >= 12 ? '✓ Normal' : '(not tested)'}
+- Glucose: ${g} mg/dL ${g > 110 ? '⚠ HIGH' : g >= 40 ? '✓ Normal' : '(not tested)'}
+- Cholesterol: ${g > 0 ? c + ' mg/dL' : '(not tested)'} ${c > 200 ? '⚠ HIGH' : c >= 80 ? '✓ Normal' : ''}
+- Vitamin D: ${v} ng/mL ${v > 0 && v < 20 ? '⚠ LOW' : v >= 20 ? '✓ Normal' : '(not tested)'}
+
+IMPORTANT - Adjust meals based on lab results:
+${h > 0 && h < 12 ? '- Hemoglobin is LOW → Include iron-rich foods: red meat, spinach, lentils, liver, dark leafy greens. Pair with vitamin C sources for absorption.\n' : ''}${g > 110 ? '- Glucose is HIGH → Avoid sugary foods, white bread, white rice. Prefer complex carbs, fiber-rich foods, cinnamon.\n' : ''}${c > 200 ? '- Cholesterol is HIGH → Reduce saturated fats, fried foods, processed meats. Include oats, nuts, olive oil, fatty fish.\n' : ''}${v > 0 && v < 20 ? '- Vitamin D is LOW → Include fatty fish (salmon, sardines), eggs, fortified dairy, mushrooms.\n' : ''}`;
+            }
+        } catch (_) { /* lab_results table may not exist */ }
+
         const genAI = getGenAI();
         const model = genAI.getGenerativeModel({
             model: 'gemini-2.5-flash',
@@ -243,7 +268,7 @@ Preferences:
 - Dislikes: ${profile.dislikes || 'none'}
 - Budget level: ${profile.budget_level || 'medium'}
 - Cook time preference: ${profile.cook_time_pref ? profile.cook_time_pref + ' min' : 'unspecified'}
-${avoidSection}
+${labSection}${avoidSection}
 The user clicked REFRESH - they want a NEW, DIFFERENT menu. Be creative. Vary the cuisine, ingredients, and meal types.
 
 RULES - MUST FOLLOW:
@@ -251,7 +276,8 @@ RULES - MUST FOLLOW:
 2. Multiple items: write portion for each. Example: "Oatmeal with berries (1 bowl) + Whole wheat toast (1 slice)" or "Grilled chicken (150g) + Green salad (1 bowl)" or "Lentil soup (1 bowl) + Rice pilaf (4 tbsp)".
 3. No preparation details, only meal name and portion.
 4. STRICT: Do not suggest any foods that violate allergies/intolerances. Avoid dislikes.
-4. Respond in ENGLISH.
+5. Adjust meal suggestions based on the lab results above — prioritize foods that address any deficiencies or high values.
+6. Respond in ENGLISH.
 
 Return ONLY valid JSON:
 {
