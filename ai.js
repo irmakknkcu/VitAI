@@ -7,136 +7,125 @@ function getGenAI() {
     return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 }
 
+// 1. KULLANICI PROFILI VE EN GÜNCEL TAHLİLLERİ BİRLEŞTİREN FONKSİYON
 async function getProfileContext(db, userId) {
-    const [profiles] = await db.query(
-        `SELECT u.name, u.surname,
-                p.age, p.gender, p.height, p.weight,
-                p.hemoglobin, p.glucose, p.cholesterol, p.vitamin_d,
-                p.goal, p.activity,
-                p.daily_calories_taken, p.daily_calories_required
-         FROM users u 
-         JOIN profiles p ON u.id = p.user_id 
-         WHERE u.id = ?`,
-        [userId]
-    );
+    try {
+        // En güncel lab sonucunu lab_results tablosundan alıp profile ile birleştiriyoruz
+        const [rows] = await db.query(
+            `SELECT u.name, u.surname, p.*, 
+                    l.hemoglobin, l.glucose, l.cholesterol, l.vitamin_d
+             FROM users u 
+             JOIN profiles p ON u.id = p.user_id 
+             LEFT JOIN (
+                SELECT * FROM lab_results 
+                WHERE user_id = ? 
+                ORDER BY log_date DESC LIMIT 1
+             ) l ON u.id = l.user_id
+             WHERE u.id = ?`,
+            [userId, userId]
+        );
 
-    if (profiles.length === 0) return '';
+        if (rows.length === 0) return 'No profile found.';
+        const p = rows[0];
 
-    const p = profiles[0];
-
-    const age = Number(p.age) || 0;
-    const height = Number(p.height) || 0;
-    const weight = Number(p.weight) || 0;
-    const goal = Number(p.goal) || 0;
-    const activity = Number(p.activity) || 1.2;
-
-    const takenCalories = Number(p.daily_calories_taken) || 0;
-    const requiredCalories = Number(p.daily_calories_required) || 0;
-
-    let bmi = 'N/A';
-    let bmr = 'N/A';
-    let tdee = 'N/A';
-
-    if (weight > 0 && height > 0) {
-        const heightM = height / 100;
-        bmi = (weight / (heightM * heightM)).toFixed(1);
+        // AI'nın tüm opsiyonlarını ve tahlillerini metne döküyoruz
+        return `
+        User: ${p.name} ${p.surname}, Age: ${p.age}, Gender: ${p.gender}, Weight: ${p.weight}kg, Goal: ${p.goal}kg.
+        STRICT DIET TYPE: ${p.diet_type || 'none'}
+        Allergies: ${p.allergies || 'none'}, Dislikes: ${p.dislikes || 'none'}.
+        Latest Lab Results: Hemoglobin=${p.hemoglobin || 'N/A'}, Glucose=${p.glucose || 'N/A'}, Cholesterol=${p.cholesterol || 'N/A'}, Vitamin D=${p.vitamin_d || 'N/A'}.
+        `.replace(/\s+/g, ' ').trim();
+    } catch (err) {
+        console.error('Context Error:', err);
+        return 'Profile access error.';
     }
-
-    if (weight > 0 && height > 0 && age > 0) {
-        bmr = (p.gender === 'male'
-            ? (10 * weight + 6.25 * height - 5 * age + 5)
-            : (10 * weight + 6.25 * height - 5 * age - 161)).toFixed(0);
-
-        tdee = (Number(bmr) * activity).toFixed(0);
-    }
-
-    return `
-User profile:
-Name: ${p.name || ''} ${p.surname || ''}
-Age: ${age}
-Gender: ${p.gender || 'female'}
-Height: ${height} cm
-Weight: ${weight} kg
-Goal: ${goal} kg
-
-Health metrics:
-BMI: ${bmi}
-BMR: ${bmr} kcal
-TDEE: ${tdee} kcal
-
-Daily calories:
-Taken: ${takenCalories} kcal
-Required: ${requiredCalories} kcal
-
-Lab values:
-Hemoglobin: ${p.hemoglobin || 0}
-Glucose: ${p.glucose || 0}
-Cholesterol: ${p.cholesterol || 0}
-Vitamin D: ${p.vitamin_d || 0}
-`.replace(/\s+/g, ' ').trim();
 }
 
-// AI Chat
+// 2. AI DIET PLAN (DİYET PLANI OLUŞTURMA)
+router.post('/diet-plan', auth, async (req, res) => {
+    try {
+        const db = req.app.locals.db;
+        const profileContext = await getProfileContext(db, req.userId);
+        const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+        User Context: ${profileContext}
+
+        STRICT DIETARY RULES BASED ON SELECTION:
+        - vegetarian: NO meat, NO chicken, NO fish. Eggs/Dairy OK.
+        - vegan: NO animal products at all.
+        - keto: Very low carb, high fat. No bread/sugar.
+        - glutenfree: No wheat/barley/rye.
+        - highprotein: Focus on lean protein in every meal.
+
+        TASK: Create a 1-day diet plan (breakfast, lunch, dinner) including calories.
+        STRICT: If user is vegetarian, DO NOT suggest chicken or meat.
+        
+        Return ONLY valid JSON:
+        {
+          "breakfast": "Meal Name (Portion)", "breakfast_calories": 350,
+          "lunch": "Meal Name (Portion)", "lunch_calories": 500,
+          "dinner": "Meal Name (Portion)", "dinner_calories": 450
+        }`;
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().replace(/```json\n?|```/g, '').trim();
+        res.json(JSON.parse(text));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 3. AI RECIPES (TARİF ÜRETME)
+router.post('/generate-recipes', auth, async (req, res) => {
+    try {
+        const db = req.app.locals.db;
+        const profileContext = await getProfileContext(db, req.userId);
+        const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+        User Health Context: ${profileContext}
+        TASK: Create 2 healthy recipes for Breakfast, Lunch, Dinner, and Snack.
+        RULE: If Diet Type is "vegetarian", YOU ARE FORBIDDEN FROM USING MEAT/CHICKEN/FISH.
+        Return ONLY valid JSON format with title, description, calories, macros, time, and instructions.`;
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().replace(/```json\n?|```/g, '').trim();
+        res.json(JSON.parse(text));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 4. AI CHAT (SOHBET)
 router.post('/chat', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
         const { message } = req.body;
-
-        if (!message) return res.status(400).json({ error: 'Message required' });
-
         const profileContext = await getProfileContext(db, req.userId);
-
-        const [history] = await db.query(
-            'SELECT role, content FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 20',
-            [req.userId]
-        );
-
+        const [history] = await db.query('SELECT role, content FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 6', [req.userId]);
         history.reverse();
 
-        const genAI = getGenAI();
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+        const systemPrompt = `You are VitAI Diet Coach. User Profile: ${profileContext}. 
+        Warn user if Glucose > 100 or Hemoglobin is abnormal. Be supportive and concise.`;
 
-        const systemPrompt = `
-You are VitAI Diet Coach, a professional AI dietitian.
-
-Rules:
-- Always personalize using user's health data
-- If glucose > 100 → warn about sugar
-- If cholesterol high → suggest low-fat diet
-- If vitamin D low → suggest sunlight/foods
-- If calories taken > required → warn user
-- Be short (2-4 sentences)
-- Be supportive
-
-${profileContext}
-`.replace(/\s+/g, ' ').trim();
-
-        let chatHistory = history.map(h => ({
-            role: h.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: String(h.content || '').trim() }]
-        }));
-
-        while (chatHistory.length > 0 && chatHistory[0].role === 'model') {
-            chatHistory = chatHistory.slice(1);
-        }
-
-        const chat = model.startChat({
-            history: chatHistory,
-            systemInstruction: { parts: [{ text: systemPrompt }] }
-        });
-
+        let chatHistory = history.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] }));
+        const chat = model.startChat({ history: chatHistory, systemInstruction: { parts: [{ text: systemPrompt }] } });
         const result = await chat.sendMessage(message);
         const aiResponse = result.response.text();
 
-        await db.query(
-            'INSERT INTO chat_messages (user_id, role, content) VALUES (?, ?, ?), (?, ?, ?)',
-            [req.userId, 'user', message, req.userId, 'assistant', aiResponse]
-        );
-
+        await db.query('INSERT INTO chat_messages (user_id, role, content) VALUES (?, ?, ?), (?, ?, ?)', [req.userId, 'user', message, req.userId, 'assistant', aiResponse]);
         res.json({ response: aiResponse });
-
-    } catch (err) {
-        console.error('AI Chat error:', err);
-        res.status(500).json({ error: 'AI service error: ' + err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// 5. FOOD IMAGE ANALYSIS (FOTOĞRAF ANALİZİ)
+router.post('/analyze-food', auth, async (req, res) => {
+    try {
+        const { image } = req.body;
+        const model = getGenAI().getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+        const prompt = `Analyze this food image. Return JSON: { "name": "", "calories": 0, "protein": 0, "carbs": 0, "fat": 0, "healthRating": 0, "advice": "" }`;
+        const result = await model.generateContent([prompt, { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }]);
+        res.json(JSON.parse(result.response.text().replace(/```json\n?|```/g, '').trim()));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+module.exports = router;

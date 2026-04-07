@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -169,87 +170,93 @@
 
     <section id="dashboard" class="hidden flex-1 w-full p-8 md:p-12">
 
-        <div id="diet" class="tab">
-            <div class="max-w-4xl mx-auto grid lg:grid-cols-2 gap-8">
-                <div class="col-span-1 flex flex-col gap-8">
-                    
-                    <div class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-orange-500">
-                        <h2 class="text-3xl font-bold mb-6 text-teal-800">🍽️ Daily Diet Plan</h2>
-                        <p class="text-lg mb-6 text-gray-600">Your recommended meals to reach your target of <span id="targetCalorie" class="font-bold text-orange-600">-</span> kcal:</p>
+       <div id="diet" class="tab">
+    <div class="max-w-4xl mx-auto grid lg:grid-cols-2 gap-8">
+        
+        <div class="col-span-1 flex flex-col gap-8">
+            <div class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-orange-500">
+                <h2 class="text-3xl font-bold mb-6 text-teal-800">🍽️ Daily Diet Plan</h2>
+                <p class="text-lg mb-6 text-gray-600">Target: <span id="targetCalorie" class="font-bold text-orange-600">-</span> kcal</p>
 
-                        <div class="flex items-center gap-2 mb-4">
-                            <button onclick="fetchAIDietPlan(true)" class="px-4 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-800 font-semibold transition text-sm">🔄 Yeni Plan Oluştur</button>
-                        </div>
-                        <div class="grid md:grid-cols-3 gap-4">
-                            <div class="bg-accent-light rounded-xl shadow-sm p-4 border border-accent-light flex flex-col gap-2">
-                                <h4 class="font-extrabold text-lg text-teal-900">🥐 Breakfast</h4>
-                                <p id="dietBreakfast" class="text-sm font-bold text-orange-600 flex-1">Will be suggested by AI.</p>
-                                <button type="button" data-log-diet-meal="Breakfast"
-                                    class="diet-meal-log-btn w-full py-2 rounded-lg bg-white border border-orange-400 text-orange-700 font-semibold text-xs hover:bg-orange-50 transition">
-                                    ✓ Tükettim — Food Log’a ekle
-                                </button>
-                            </div>
-                            <div class="bg-accent-light rounded-xl shadow-sm p-4 border border-accent-light flex flex-col gap-2">
-                                <h4 class="font-extrabold text-lg text-teal-900">🍛 Lunch</h4>
-                                <p id="dietLunch" class="text-sm font-bold text-orange-600 flex-1">Will be suggested by AI.</p>
-                                <button type="button" data-log-diet-meal="Lunch"
-                                    class="diet-meal-log-btn w-full py-2 rounded-lg bg-white border border-orange-400 text-orange-700 font-semibold text-xs hover:bg-orange-50 transition">
-                                    ✓ Tükettim — Food Log’a ekle
-                                </button>
-                            </div>
-                            <div class="bg-accent-light rounded-xl shadow-sm p-4 border border-accent-light flex flex-col gap-2">
-                                <h4 class="font-extrabold text-lg text-teal-900">🥗 Dinner</h4>
-                                <p id="dietDinner" class="text-sm font-bold text-orange-600 flex-1">Will be suggested by AI.</p>
-                                <button type="button" data-log-diet-meal="Dinner"
-                                    class="diet-meal-log-btn w-full py-2 rounded-lg bg-white border border-orange-400 text-orange-700 font-semibold text-xs hover:bg-orange-50 transition">
-                                    ✓ Tükettim — Food Log’a ekle
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="mt-8 pt-6 border-t border-teal-200">
-                            <h3 class="text-xl font-bold mb-4 text-teal-800">Current Health Metrics</h3>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                                <div class="p-2 bg-white rounded-lg border">
-                                    <div class="text-xs text-gray-500">BMI</div>
-                                    <div id="dietBmiValue" class="font-bold text-lg">-</div>
-                                </div>
-                                <div class="p-2 bg-white rounded-lg border">
-                                    <div class="text-xs text-gray-500">BMR</div>
-                                    <div id="dietBmrValue" class="font-bold text-lg">-</div>
-                                </div>
-                                <div class="p-2 bg-white rounded-lg border col-span-2">
-                                    <div class="text-xs text-gray-500">Exercise Calories (Today)</div>
-                                    <div id="dietExerciseCalories" class="font-bold text-lg">- kcal</div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="flex items-center gap-2 mb-4">
+                    <button onclick="fetchAIDietPlan(true)" class="px-4 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-800 font-semibold transition text-sm">🔄 Yeni Plan Oluştur</button>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="bg-accent-light rounded-xl p-4 border flex flex-col gap-2">
+                        <h4 class="font-extrabold text-lg text-teal-900">🥐 Breakfast</h4>
+                        <p id="dietBreakfast" class="text-sm font-bold text-orange-600 flex-1">Suggested by AI...</p>
+                        <p id="dietBreakfastCal" class="text-xs font-bold text-teal-700"></p> 
+                        <button type="button" data-log-diet-meal="Breakfast" class="diet-meal-log-btn w-full py-2 rounded-lg bg-white border border-orange-400 text-orange-700 font-semibold text-xs">✓ Ekle</button>
+                    </div>
+                    <div class="bg-accent-light rounded-xl p-4 border flex flex-col gap-2">
+                        <h4 class="font-extrabold text-lg text-teal-900">🍛 Lunch</h4>
+                        <p id="dietLunch" class="text-sm font-bold text-orange-600 flex-1">Suggested by AI...</p>
+                        <p id="dietLunchCal" class="text-xs font-bold text-teal-700"></p>
+                        <button type="button" data-log-diet-meal="Lunch" class="diet-meal-log-btn w-full py-2 rounded-lg bg-white border border-orange-400 text-orange-700 font-semibold text-xs">✓ Ekle</button>
+                    </div>
+                    <div class="bg-accent-light rounded-xl p-4 border flex flex-col gap-2">
+                        <h4 class="font-extrabold text-lg text-teal-900">🥗 Dinner</h4>
+                        <p id="dietDinner" class="text-sm font-bold text-orange-600 flex-1">Suggested by AI...</p>
+                        <p id="dietDinnerCal" class="text-xs font-bold text-teal-700"></p>
+                        <button type="button" data-log-diet-meal="Dinner" class="diet-meal-log-btn w-full py-2 rounded-lg bg-white border border-orange-400 text-orange-700 font-semibold text-xs">✓ Ekle</button>
                     </div>
                 </div>
 
-                <div class="col-span-1">
-                    <div id="dietitian-chat-box" class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-primary">
-                        <h2 class="text-2xl font-bold mb-4 text-primary">💬 My AI Dietitian</h2>
-                        <div class="text-gray-600 mb-4 text-sm">You can instantly ask questions about nutrition, recipes, or your diet.</div>
-                        
-                        <div id="chatMessages" class="chat-box-height overflow-y-auto p-4 mb-4 border rounded-lg bg-teal-50/50 flex flex-col gap-3">
-                            <div class="flex justify-start">
-                                <div class="bg-primary text-white p-3 rounded-xl max-w-[80%] shadow-md">
-                                    Hello! I am your HealthAI Diet Coach. How can I help you today?
-                                </div>
-                            </div>
+                <div class="mt-8 pt-6 border-t border-teal-200">
+                    <h3 class="text-xl font-bold mb-4 text-teal-800">Current Health Metrics</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6">
+                        <div class="p-2 bg-white rounded-lg border">
+                            <div class="text-xs text-gray-500">BMI</div>
+                            <div id="dietBmiValue" class="font-bold text-lg">-</div>
                         </div>
+                        <div class="p-2 bg-white rounded-lg border">
+                            <div class="text-xs text-gray-500">BMR</div>
+                            <div id="dietBmrValue" class="font-bold text-lg">-</div>
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border col-span-2">
+                            <div class="text-xs text-gray-500">Exercise (Today)</div>
+                            <div id="dietExerciseCalories" class="font-bold text-lg">- kcal</div>
+                        </div>
+                    </div>
 
-                        <div class="flex gap-2">
-                            <input type="text" id="chatInput" class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" placeholder="Type your question here...">
-                            <button onclick="sendAiMessage()" class="bg-secondary-cta hover-secondary-cta text-white font-semibold px-4 rounded-lg transition">
-                                Send
-                            </button>
+                    <h3 class="text-base font-bold mb-3 text-teal-700">🧪 Latest Lab Results</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                        <div class="p-2 bg-teal-50 rounded-lg border">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold">Glucose</div>
+                            <div id="dietGlucose" class="font-bold text-sm text-teal-700">-</div>
+                        </div>
+                        <div class="p-2 bg-teal-50 rounded-lg border">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold">Hemoglobin</div>
+                            <div id="dietHemoglobin" class="font-bold text-sm text-teal-700">-</div>
+                        </div>
+                        <div class="p-2 bg-teal-50 rounded-lg border">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold">Cholesterol</div>
+                            <div id="dietCholesterol" class="font-bold text-sm text-teal-700">-</div>
+                        </div>
+                        <div class="p-2 bg-teal-50 rounded-lg border">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold">Vitamin D</div>
+                            <div id="dietVitaminD" class="font-bold text-sm text-teal-700">-</div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </div> <div class="col-span-1">
+            <div id="dietitian-chat-box" class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-primary">
+                <h2 class="text-2xl font-bold mb-4 text-primary">💬 My AI Dietitian</h2>
+                <div id="chatMessages" class="chat-box-height overflow-y-auto p-4 mb-4 border rounded-lg bg-teal-50/50 flex flex-col gap-3">
+                    <div class="flex justify-start">
+                        <div class="bg-primary text-white p-3 rounded-xl max-w-[80%] shadow-md">Hello! How can I help you?</div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="chatInput" class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="Type here...">
+                    <button onclick="sendAiMessage()" class="bg-secondary-cta hover-secondary-cta text-white font-semibold px-4 rounded-lg transition">Send</button>
+                </div>
+            </div>
+        </div> </div> </div> 
+
+
 
         <div id="foodLog" class="tab hidden">
             <div class="max-w-4xl mx-auto grid lg:grid-cols-3 gap-8">
@@ -975,7 +982,7 @@
         document.getElementById('weight').value = cachedProfile.weight || "";
         document.getElementById('goal').value = cachedProfile.goal || "";
         document.getElementById('activity').value = cachedProfile.activity || "1.2";
-        document.getElementById('dietType').value = cachedProfile.diet_type || "";
+        document.getElementById('dietType').value = data.diet_type || data.dietType || "";
         document.getElementById('allergies').value = cachedProfile.allergies || "";
         document.getElementById('dislikes').value = cachedProfile.dislikes || "";
         document.getElementById('budgetLevel').value = cachedProfile.budget_level || "medium";
@@ -1076,6 +1083,22 @@
         const todayData = await api('/exercise/today-calories');
         const todayCalories = todayData ? todayData.calories : 0;
         document.getElementById('dietExerciseCalories').innerText = todayCalories + " kcal";
+
+        
+const labs = await api('/lab'); 
+if (labs && labs.length > 0) {
+    const l = labs[0]; // En son kaydedilen tahlili al
+    
+    // Elementler varsa değerleri yazdır, yoksa '-' koy
+    if(document.getElementById('dietHemoglobin')) 
+        document.getElementById('dietHemoglobin').innerText = l.hemoglobin || '-';
+    if(document.getElementById('dietGlucose')) 
+        document.getElementById('dietGlucose').innerText = l.glucose || '-';
+    if(document.getElementById('dietCholesterol')) 
+        document.getElementById('dietCholesterol').innerText = l.cholesterol || '-';
+    if(document.getElementById('dietVitaminD')) 
+        document.getElementById('dietVitaminD').innerText = l.vitamin_d || '-';
+}
     }
 
     function updateExerciseCalories() {
@@ -1318,32 +1341,48 @@
         if (persist) saveDietMealLoggedState(mealType);
     }
 
-    function renderAIDietPlan(dietData) {
-        if (!dietData) return;
-        const fp = dietPlanMealFingerprint(dietData);
-        const getMealText = (m) => typeof m === 'string' ? m : (m && m.meal ? m.meal : '-');
-        const bt = getMealText(dietData.breakfast);
-        const lt = getMealText(dietData.lunch);
-        const dt = getMealText(dietData.dinner);
-        const mc = dietData.meal_calories || {};
-        const fb = estimateDietMealCaloriesFallback();
-        const nb = Number(mc.breakfast);
-        const nl = Number(mc.lunch);
-        const nd = Number(mc.dinner);
-        dietPlanMeals = {
-            Breakfast: { text: bt, kcal: (Number.isFinite(nb) && nb > 0) ? Math.round(nb) : fb.breakfast },
-            Lunch: { text: lt, kcal: (Number.isFinite(nl) && nl > 0) ? Math.round(nl) : fb.lunch },
-            Dinner: { text: dt, kcal: (Number.isFinite(nd) && nd > 0) ? Math.round(nd) : fb.dinner }
-        };
-        const breakfastEl = document.getElementById('dietBreakfast');
-        const lunchEl = document.getElementById('dietLunch');
-        const dinnerEl = document.getElementById('dietDinner');
-        if (breakfastEl) breakfastEl.innerText = bt;
-        if (lunchEl) lunchEl.innerText = lt;
-        if (dinnerEl) dinnerEl.innerText = dt;
-        window.__vitaiDietPlanFp = fp;
-        restoreDietMealButtonsFromSession(fp);
-    }
+ function renderAIDietPlan(dietData) {
+    if (!dietData) return;
+    const fp = dietPlanMealFingerprint(dietData);
+    const getMealText = (m) => typeof m === 'string' ? m : (m && m.meal ? m.meal : '-');
+    const bt = getMealText(dietData.breakfast);
+    const lt = getMealText(dietData.lunch);
+    const dt = getMealText(dietData.dinner);
+    
+    // Kalorileri objeden alıyoruz (meal_calories veya direkt cal değerleri)
+    const mc = dietData.meal_calories || {};
+    const fb = estimateDietMealCaloriesFallback();
+    const nb = Number(mc.breakfast) || Number(dietData.breakfast_calories);
+    const nl = Number(mc.lunch) || Number(dietData.lunch_calories);
+    const nd = Number(mc.dinner) || Number(dietData.dinner_calories);
+
+    dietPlanMeals = {
+        Breakfast: { text: bt, kcal: (Number.isFinite(nb) && nb > 0) ? Math.round(nb) : fb.breakfast },
+        Lunch: { text: lt, kcal: (Number.isFinite(nl) && nl > 0) ? Math.round(nl) : fb.lunch },
+        Dinner: { text: dt, kcal: (Number.isFinite(nd) && nd > 0) ? Math.round(nd) : fb.dinner }
+    };
+
+    // Metinleri yazdır
+    const breakfastEl = document.getElementById('dietBreakfast');
+    const lunchEl = document.getElementById('dietLunch');
+    const dinnerEl = document.getElementById('dietDinner');
+    if (breakfastEl) breakfastEl.innerText = bt;
+    if (lunchEl) lunchEl.innerText = lt;
+    if (dinnerEl) dinnerEl.innerText = dt;
+
+    // --- BURASI YENİ: Kalorileri senin eklediğin ID'lere yazdır ---
+    const bCalEl = document.getElementById('dietBreakfastCal');
+    const lCalEl = document.getElementById('dietLunchCal');
+    const dCalEl = document.getElementById('dietDinnerCal');
+    
+    if (bCalEl) bCalEl.innerText = `🔥 ~${dietPlanMeals.Breakfast.kcal} kcal`;
+    if (lCalEl) lCalEl.innerText = `🔥 ~${dietPlanMeals.Lunch.kcal} kcal`;
+    if (dCalEl) dCalEl.innerText = `🔥 ~${dietPlanMeals.Dinner.kcal} kcal`;
+    // -------------------------------------------------------------
+
+    window.__vitaiDietPlanFp = fp;
+    restoreDietMealButtonsFromSession(fp);
+}
 
     function loadDietPlan() {
         fetchAIDietPlan(false);

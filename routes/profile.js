@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 
+// PROFIL GETIRME
 router.get('/', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
@@ -20,26 +21,18 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
+// PROFIL GÜNCELLEME (DIET_TYPE VE LAB SONUÇLARI DAHİL)
 router.put('/', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
-        const {
-            name,
-            surname,
-            age,
-            gender,
-            height,
-            weight,
-            goal,
-            activity,
-            diet_type,
-            allergies,
-            dislikes,
-            budget_level,
-            cook_time_pref,
-            avatar
+        // 1. BURASI DEĞİŞTİ: Yeni alanları (diet_type, allergies vb.) buraya ekledik
+        const { 
+            name, surname, age, gender, height, weight, goal, activity, avatar,
+            diet_type, allergies, dislikes, budget_level, cook_time_pref,
+            hemoglobin, glucose, cholesterol, vitamin_d 
         } = req.body;
 
+        // Kullanıcı adı ve soyadını güncelle
         await db.query(
             'UPDATE users SET name = ?, surname = ? WHERE id = ?',
             [name || '', surname || '', req.userId]
@@ -49,52 +42,48 @@ router.put('/', auth, async (req, res) => {
             await db.query('UPDATE users SET avatar = ? WHERE id = ?', [avatar, req.userId]);
         }
 
-        // Backward-compatible upsert: if the DB hasn't been migrated yet, fall back to the old column set.
-        try {
-            await db.query(
-                `INSERT INTO profiles (user_id, age, gender, height, weight, goal, activity, diet_type, allergies, dislikes, budget_level, cook_time_pref)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
-                     age=VALUES(age),
-                     gender=VALUES(gender),
-                     height=VALUES(height),
-                     weight=VALUES(weight),
-                     goal=VALUES(goal),
-                     activity=VALUES(activity),
-                     diet_type=VALUES(diet_type),
-                     allergies=VALUES(allergies),
-                     dislikes=VALUES(dislikes),
-                     budget_level=VALUES(budget_level),
-                     cook_time_pref=VALUES(cook_time_pref)`,
-                [
-                    req.userId,
-                    age || 0,
-                    gender || 'female',
-                    height || 0,
-                    weight || 0,
-                    goal || 0,
-                    activity || 1.2,
-                    diet_type || '',
-                    allergies ?? null,
-                    dislikes ?? null,
-                    budget_level || 'medium',
-                    Number.isFinite(Number(cook_time_pref)) ? Number(cook_time_pref) : 30
-                ]
-            );
-        } catch (e) {
-            await db.query(
-                `INSERT INTO profiles (user_id, age, gender, height, weight, goal, activity) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE age=VALUES(age), gender=VALUES(gender), height=VALUES(height), 
-                 weight=VALUES(weight), goal=VALUES(goal), activity=VALUES(activity)`,
-                [req.userId, age || 0, gender || 'female', height || 0, weight || 0, goal || 0, activity || 1.2]
-            );
+        // Kalori hedefini hesapla
+        let dailyCaloriesGoal = 0;
+        const w = Number(weight) || 0;
+        const h = Number(height) || 0;
+        const a = Number(age) || 0;
+        const act = Number(activity) || 1.2;
+        if (w > 0 && h > 0 && a > 0) {
+            const bmr = gender === 'male'
+                ? (10 * w + 6.25 * h - 5 * a + 5)
+                : (10 * w + 6.25 * h - 5 * a - 161);
+            dailyCaloriesGoal = Math.round(bmr * act);
         }
 
-        res.json({ success: true });
+        // 2. BURASI DEĞİŞTİ: INSERT/UPDATE sorgusuna tüm yeni sütunları ekledik
+        await db.query(
+            `INSERT INTO profiles (
+                user_id, age, gender, height, weight, goal, activity, 
+                daily_calories_goal, diet_type, allergies, dislikes, 
+                budget_level, cook_time_pref, hemoglobin, glucose, cholesterol, vitamin_d
+            ) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                age=VALUES(age), gender=VALUES(gender), height=VALUES(height), 
+                weight=VALUES(weight), goal=VALUES(goal), activity=VALUES(activity),
+                daily_calories_goal=VALUES(daily_calories_goal),
+                diet_type=VALUES(diet_type), allergies=VALUES(allergies), 
+                dislikes=VALUES(dislikes), budget_level=VALUES(budget_level), 
+                cook_time_pref=VALUES(cook_time_pref),
+                hemoglobin=VALUES(hemoglobin), glucose=VALUES(glucose),
+                cholesterol=VALUES(cholesterol), vitamin_d=VALUES(vitamin_d)`,
+            [
+                req.userId, age || 0, gender || 'female', height || 0, weight || 0, goal || 0, activity || 1.2, 
+                dailyCaloriesGoal, diet_type || '', allergies || '', dislikes || '', 
+                budget_level || 'medium', cook_time_pref || 30,
+                hemoglobin || 0, glucose || 0, cholesterol || 0, vitamin_d || 0
+            ]
+        );
+
+        res.json({ success: true, dailyCaloriesGoal });
     } catch (err) {
         console.error('Save profile error:', err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: 'Server error: ' + err.message });
     }
 });
 
