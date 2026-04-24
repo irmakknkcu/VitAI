@@ -3,8 +3,16 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+function getGeminiApiKey() {
+    return (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+}
+
 function getGenAI() {
-    return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+        throw new Error('GEMINI_API_KEY is missing. Add it to .env and restart the server.');
+    }
+    return new GoogleGenerativeAI(apiKey);
 }
 
 async function getProfileContext(db, userId) {
@@ -313,7 +321,31 @@ meal_calories MUST be realistic integers (kcal) for the full meal text above; th
     }
 });
 
-// Recipe Generation (4 categories, 2 recipes each)
+const RECIPE_CATEGORIES = ['breakfast', 'lunch', 'dinner', 'snack'];
+const RECIPE_MEAL_LABEL_TR = {
+    breakfast: 'Kahvaltı',
+    lunch: 'Öğle yemeği',
+    dinner: 'Akşam yemeği',
+    snack: 'Atıştırmalık'
+};
+
+function recipeFallbackItem() {
+    return { title: 'Tarif yüklenemedi', description: '', calories: '-', macros: '-', time: '-', instructions: '' };
+}
+
+function listForCategoryKey(parsed, singleCategory) {
+    if (!parsed || typeof parsed !== 'object') return [];
+    const want = String(singleCategory).toLowerCase();
+    for (const k of Object.keys(parsed)) {
+        if (String(k).toLowerCase() === want) {
+            const items = parsed[k];
+            return Array.isArray(items) ? items : (items ? [items] : []);
+        }
+    }
+    return [];
+}
+
+// Recipe Generation: all categories (default) or one category when body.category is set
 router.post('/generate-recipes', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
@@ -344,7 +376,15 @@ router.post('/generate-recipes', auth, async (req, res) => {
             }
         });
 
-        const promptContext = `Kullanıcı profili: 
+        const fromBody = req.body && req.body.category != null ? String(req.body.category).toLowerCase().trim() : '';
+        const fromQuery = req.query && req.query.category != null ? String(req.query.category).toLowerCase().trim() : '';
+        const rawCat = fromBody || fromQuery;
+        const singleCategory = RECIPE_CATEGORIES.includes(rawCat) ? rawCat : null;
+        const excludeTitles = Array.isArray(req.body && req.body.excludeTitles)
+            ? req.body.excludeTitles.map(t => String(t || '').trim()).filter(Boolean).slice(0, 12)
+            : [];
+
+        const profileBlock = `Kullanıcı profili: 
 Yaş: ${profile.age}, Cinsiyet: ${profile.gender === 'female' ? 'Kadın' : 'Erkek'}, 
 Boy: ${profile.height} cm, Kilo: ${profile.weight} kg, Hedef kilo: ${profile.goal || '-'} kg, Aktivite: ${profile.activity || 1.2}
 Tercihler:
@@ -352,14 +392,40 @@ Tercihler:
 - Alerji/intolerans: ${profile.allergies || 'yok'}
 - Sevmediği besinler: ${profile.dislikes || 'yok'}
 - Bütçe seviyesi: ${profile.budget_level || 'medium'}
-- Pişirme süresi tercihi: ${profile.cook_time_pref ? profile.cook_time_pref + ' dk' : 'belirtilmedi'}
+- Pişirme süresi tercihi: ${profile.cook_time_pref ? profile.cook_time_pref + ' dk' : 'belirtilmedi'}`;
+
+        const rulesBlock = `Kesin kurallar:
+- Alerjilere/intoleranslara aykırı malzeme kullanma.
+- Sevmediği besinleri tariflere koyma.
+- Pişirme süresi tercihini mümkün olduğunca takip et.`;
+
+        let promptContext;
+        if (singleCategory) {
+            const mealTr = RECIPE_MEAL_LABEL_TR[singleCategory];
+            const avoidBlock = excludeTitles.length
+                ? `\nKullanıcı bu öğün için şu tarif başlıklarını beğenmedi veya değiştirmek istiyor; aynı veya çok benzer başlık/malzeme kombinasyonlarını TEKRARLAMA:\n${excludeTitles.map(t => `- ${t}`).join('\n')}\n`
+                : '';
+
+            promptContext = `${profileBlock}
+
+GÖREV: Sadece "${mealTr}" (${singleCategory}) için tam 2 yeni, farklı tarif üret. Başka öğün (breakfast/lunch/dinner/snack) için tarif verme; JSON'da yalnızca "${singleCategory}" anahtarı olsun.
+${avoidBlock}
+Her tarif: title, description, calories, macros, time, instructions alanlarıyla.
+TAMAMEN yeni malzemeler ve farklı mutfak tarzları kullan.${rulesBlock}
+
+Kesinlikle JSON formatında döndür (başka anahtar ekleme):
+{
+  "${singleCategory}": [
+    { "title": "...", "description": "...", "calories": "...", "macros": "...", "time": "...", "instructions": "..." },
+    { "title": "...", "description": "...", "calories": "...", "macros": "...", "time": "...", "instructions": "..." }
+  ]
+}`;
+        } else {
+            promptContext = `${profileBlock}
 
 Bu kullanıcı için hedefine uygun, sağlıklı ve pratik tarifler oluştur. Her kategoride 2 farklı tarif ver (toplam 8 tarif).
 Lütfen her seferinde TAMAMEN FARKLI malzemeler kullanan yepyeni dünya mutfağı veya yerel tarifler üret. Aynı tarifleri tekrar verme.
-Kesin kurallar:
-- Alerjilere/intoleranslara aykırı malzeme kullanma.
-- Sevmediği besinleri tariflere koyma.
-- Pişirme süresi tercihini mümkün olduğunca takip et.
+${rulesBlock}
 
 Kesinlikle JSON formatında döndür:
 {
@@ -380,21 +446,35 @@ Kesinlikle JSON formatında döndür:
     { "title": "...", "description": "...", "calories": "...", "macros": "...", "time": "...", "instructions": "..." }
   ]
 }`;
+        }
 
         const result = await model.generateContent(promptContext);
         let text = result.response.text();
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
+        const fullFallback = () => ({
+            breakfast: [recipeFallbackItem()],
+            lunch: [recipeFallbackItem()],
+            dinner: [recipeFallbackItem()],
+            snack: [recipeFallbackItem()]
+        });
+
         try {
             const parsed = JSON.parse(text);
+            if (singleCategory) {
+                const list = listForCategoryKey(parsed, singleCategory);
+                if (!list.length) {
+                    return res.json({ [singleCategory]: [recipeFallbackItem(), recipeFallbackItem()] });
+                }
+                return res.json({ [singleCategory]: list.slice(0, 4) });
+            }
             res.json(parsed);
         } catch {
-            res.json({
-                breakfast: [{ title: 'Tarif yüklenemedi', description: '', calories: '-', macros: '-', time: '-', instructions: '' }],
-                lunch: [{ title: 'Tarif yüklenemedi', description: '', calories: '-', macros: '-', time: '-', instructions: '' }],
-                dinner: [{ title: 'Tarif yüklenemedi', description: '', calories: '-', macros: '-', time: '-', instructions: '' }],
-                snack: [{ title: 'Tarif yüklenemedi', description: '', calories: '-', macros: '-', time: '-', instructions: '' }]
-            });
+            if (singleCategory) {
+                res.json({ [singleCategory]: [recipeFallbackItem(), recipeFallbackItem()] });
+            } else {
+                res.json(fullFallback());
+            }
         }
     } catch (err) {
         console.error('Recipe generation error:', err);
