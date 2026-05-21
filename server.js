@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2/promise');
+const os = require('os');
 const path = require('path');
 
 const app = express();
@@ -30,6 +31,7 @@ const exerciseRoutes = require('./routes/exercise');
 const weightRoutes = require('./routes/weight');
 const labRoutes = require('./routes/lab');
 const aiRoutes = require('./routes/ai');
+const watchDataRoutes = require('./routes/watch-data');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
@@ -38,12 +40,13 @@ app.use('/api/exercise', exerciseRoutes);
 app.use('/api/weight', weightRoutes);
 app.use('/api/lab', labRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/watch-data', watchDataRoutes);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
     try {
         const conn = await pool.getConnection();
         console.log('MySQL connected successfully');
@@ -53,5 +56,18 @@ app.listen(PORT, async () => {
         console.error('Make sure MySQL is running and the database "vitai" exists.');
         console.error('Run: mysql -u root -p < db/schema.sql');
     }
-    console.log(`VitAI server running at http://localhost:${PORT}`);
+    try {
+        await profileRoutes.ensureProfileColumns(pool);
+    } catch (migErr) {
+        console.error('profiles table migration:', migErr.message);
+    }
+    console.log(`VitAI server running at http://0.0.0.0:${PORT}`);
+    const interfaces = os.networkInterfaces();
+    const lanIps = Object.values(interfaces)
+        .flat()
+        .filter((item) => item && item.family === 'IPv4' && !item.internal)
+        .map((item) => item.address);
+    if (lanIps.length > 0) {
+        console.log(`iPhone test URL: http://${lanIps[0]}:${PORT}`);
+    }
 });

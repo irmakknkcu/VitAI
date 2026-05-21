@@ -43,12 +43,13 @@ router.get('/summary', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
-        const date = req.query.date || isoLocalToday();
+        const raw = req.query.date;
+        const date = isIsoDate(raw) ? raw : isoLocalToday();
         const [rows] = await db.query(
             'SELECT * FROM exercise_log WHERE user_id = ? AND log_date = ? ORDER BY created_at ASC',
             [req.userId, date]
         );
-        res.json(rows);
+        res.json(rows.map((r) => ({ ...r, calories: Number(r.calories), duration: Number(r.duration), steps: Number(r.steps) || 0 })));
     } catch (err) {
         console.error('Get exercise log error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -62,7 +63,7 @@ router.get('/weekly', auth, async (req, res) => {
             'SELECT * FROM exercise_log WHERE user_id = ? AND log_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) ORDER BY created_at ASC',
             [req.userId]
         );
-        res.json(rows);
+        res.json(rows.map((r) => ({ ...r, calories: Number(r.calories), duration: Number(r.duration), steps: Number(r.steps) || 0 })));
     } catch (err) {
         console.error('Get weekly exercise error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -72,7 +73,8 @@ router.get('/weekly', auth, async (req, res) => {
 router.get('/today-calories', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
-        const date = isoLocalToday();
+        const raw = req.query.date;
+        const date = isIsoDate(raw) ? raw : isoLocalToday();
         const [rows] = await db.query(
             'SELECT COALESCE(SUM(calories), 0) as total FROM exercise_log WHERE user_id = ? AND log_date = ?',
             [req.userId, date]
@@ -87,10 +89,10 @@ router.get('/today-calories', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
-        const { type, duration, calories } = req.body;
+        const { type, duration, calories, log_date: bodyLogDate } = req.body;
         if (!type || !duration) return res.status(400).json({ error: 'Type and duration required' });
 
-        const date = isoLocalToday();
+        const date = isIsoDate(bodyLogDate) ? bodyLogDate : isoLocalToday();
         const [result] = await db.query(
             'INSERT INTO exercise_log (user_id, type, duration, calories, log_date) VALUES (?, ?, ?, ?, ?)',
             [req.userId, type, duration, calories || 0, date]

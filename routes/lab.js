@@ -31,6 +31,13 @@ try {
 const upload = multer({ storage: multer.memoryStorage() });
 const TESS_LANG = 'eng+tur';
 
+/** `lab_results.log_date` is DATE — MySQL rejects full ISO timestamps. */
+function isoLocalDateString(d = new Date()) {
+    const x = new Date(d);
+    x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
+    return x.toISOString().slice(0, 10);
+}
+
 const normalizeValue = (value, type) => {
     if (value === null || value === undefined || value === '') {
         return 0;
@@ -477,7 +484,7 @@ router.post('/', auth, async (req, res) => {
         const c = normalizeValue(req.body.cholesterol, 'cholesterol');
         const v = normalizeValue(req.body.vitamin_d, 'vitaminD');
 
-        const date = new Date().toISOString();
+        const date = isoLocalDateString();
 
         const [result] = await db.query(
             `INSERT INTO lab_results 
@@ -490,7 +497,7 @@ router.post('/', auth, async (req, res) => {
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Insert failed' });
+        res.status(500).json({ error: err.sqlMessage || err.message || 'Insert failed' });
     }
 });
 
@@ -524,7 +531,7 @@ router.post('/upload-pdf', auth, upload.single('labPdf'), async (req, res) => {
         const parsed = await parseLabPdfBuffer(req.file.buffer, req.file.mimetype);
 
         const db = req.app.locals.db;
-        const date = new Date().toISOString();
+        const date = isoLocalDateString();
 
         const [result] = await db.query(
             `INSERT INTO lab_results 

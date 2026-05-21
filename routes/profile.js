@@ -2,10 +2,37 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 
+/** Eski DB’lerde `profiles` eksik sütunlarla kalmış olabiliyor; information_schema ile güvenilir eklenir. */
+async function ensureProfileColumns(db) {
+    const [[dbRow]] = await db.query('SELECT DATABASE() AS n');
+    const schema = dbRow && dbRow.n ? String(dbRow.n) : (process.env.DB_NAME || 'vitai');
+    const [cols] = await db.query(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'profiles'`,
+        [schema]
+    );
+    const have = new Set((cols || []).map((r) => r.COLUMN_NAME));
+
+    const alters = [
+        { col: 'diet_type', sql: "ALTER TABLE profiles ADD COLUMN diet_type VARCHAR(50) DEFAULT ''" },
+        { col: 'allergies', sql: 'ALTER TABLE profiles ADD COLUMN allergies TEXT' },
+        { col: 'dislikes', sql: 'ALTER TABLE profiles ADD COLUMN dislikes TEXT' },
+        { col: 'budget_level', sql: "ALTER TABLE profiles ADD COLUMN budget_level ENUM('low','medium','high') DEFAULT 'medium'" },
+        { col: 'cook_time_pref', sql: 'ALTER TABLE profiles ADD COLUMN cook_time_pref INT DEFAULT 30' },
+    ];
+    for (const { col, sql } of alters) {
+        if (!have.has(col)) {
+            await db.query(sql);
+            have.add(col);
+        }
+    }
+}
+
 // PROFIL GETIRME
 router.get('/', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
+        await ensureProfileColumns(db);
         const [users] = await db.query('SELECT name, surname, email, avatar FROM users WHERE id = ?', [req.userId]);
         const [profiles] = await db.query('SELECT * FROM profiles WHERE user_id = ?', [req.userId]);
 
@@ -25,6 +52,7 @@ router.get('/', auth, async (req, res) => {
 router.put('/', auth, async (req, res) => {
     try {
         const db = req.app.locals.db;
+        await ensureProfileColumns(db);
         // 1. BURASI DEĞİŞTİ: Yeni alanları (diet_type, allergies vb.) buraya ekledik
         const { 
             name, surname, age, gender, height, weight, goal, activity, avatar,
@@ -88,3 +116,4 @@ router.put('/', auth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.ensureProfileColumns = ensureProfileColumns;
