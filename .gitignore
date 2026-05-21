@@ -4,3 +4,12 @@ uploads/
 temp/
 eng.traineddata
 tur.traineddata
+
+# Xcode (VitAIHealthSync)
+**/xcuserdata/
+*.xcuserstate
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM

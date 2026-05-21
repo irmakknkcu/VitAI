@@ -6,7 +6,7 @@
 //
 //  Mac LAN IP + :3000 (Node). Prefer this file over the minimal snippet: it sends log_date,
 //  normalizes missing :3000 on private IPs, uses timeouts, and maps URLError (local LAN, ATS).
-//  Info.plist: NSLocalNetworkUsageDescription + ATS (see VitAIHealthSync-Info-additions.plist).
+//  Info.plist: NSLocalNetworkUsageDescription + ATS (see Info-additions-reference.plist).
 //
 
 import Combine
@@ -41,7 +41,7 @@ enum WatchDataSyncError: LocalizedError {
         case .localNetworkBlockedByIOS:
             return """
             iOS yerel ağı kapattı (log: “Local network prohibited” / -1009).
-            Xcode: Target → Info → “Privacy - Local Network Usage Description” ekleyin (VitAIHealthSync-Info-additions.plist dosyasına bakın).
+            Xcode: Target → Info → “Privacy - Local Network Usage Description” ekleyin (Info-additions-reference.plist dosyasına bakın).
             iPhone: Ayarlar → Gizlilik ve Güvenlik → Yerel Ağ → uygulamanız açık olsun.
             """
         case .linkFailed(let url, let code, let systemMessage):
